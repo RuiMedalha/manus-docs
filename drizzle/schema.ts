@@ -272,6 +272,29 @@ export const bankTransactions = mysqlTable(
   ],
 );
 
+export const paymentSchedules = mysqlTable(
+  "paymentSchedules",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    tenantId: int("tenantId").notNull(),
+    documentId: int("documentId"),
+    createdByUserId: int("createdByUserId").notNull(),
+    counterparty: varchar("counterparty", { length: 255 }).notNull(),
+    dueDate: date("dueDate", { mode: "string" }).notNull(),
+    amountCents: bigint("amountCents", { mode: "number" }).notNull(),
+    currency: varchar("currency", { length: 3 }).default("EUR").notNull(),
+    status: mysqlEnum("status", ["pendente", "pago", "cancelado"]).default("pendente").notNull(),
+    paidAt: date("paidAt", { mode: "string" }),
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    index("paymentSchedules_tenant_due_idx").on(table.tenantId, table.dueDate, table.status),
+    uniqueIndex("paymentSchedules_tenant_document_uq").on(table.tenantId, table.documentId),
+  ],
+);
+
 export const financialRecords = mysqlTable(
   "financialRecords",
   {

@@ -8,6 +8,7 @@ import { folderRulesRouter } from "./routers/folder-rules";
 import { reconciliationRouter } from "./routers/reconciliation";
 import { integrationsRouter } from "./routers/integrations";
 import { ocrRouter } from "./routers/ocr";
+import { paymentsRouter } from "./routers/payments";
 import { tenantRouter } from "./routers/tenant";
 
 export const appRouter = router({
@@ -30,6 +31,7 @@ export const appRouter = router({
   reconciliation: reconciliationRouter,
   integrations: integrationsRouter,
   ocr: ocrRouter,
+  payments: paymentsRouter,
 });
 
 export type AppRouter = typeof appRouter;

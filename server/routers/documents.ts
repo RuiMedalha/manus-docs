@@ -4,12 +4,14 @@ import { z } from "zod";
 import {
   createDocument,
   createFinancialRecordFromDocument,
+  createOrUpdatePaymentFromDocument,
   enqueueDocumentProcessingJob,
   findDocumentDuplicates,
   getDocumentForTenant,
   getOrCreateTenantContext,
   listDocumentsForTenant,
   listFolderRulesForTenant,
+  moveDocumentToFolder,
   recordAudit,
   updateDocumentForTenant,
 } from "../db";
@@ -110,6 +112,7 @@ export const documentsRouter = router({
         finalFolder: suggestedFolder,
       });
       await createFinancialRecordFromDocument({ tenantId: tenantContext.tenant.id, documentId: document.id, documentType: document.documentType, documentNumber: document.documentNumber, entityName: document.entityName, documentDate: document.documentDate, totalCents: document.totalCents, currency: document.currency });
+      await createOrUpdatePaymentFromDocument({ tenantId: tenantContext.tenant.id, documentId: document.id, createdByUserId: ctx.user.id, documentType: document.documentType, entityName: document.entityName, dueDate: document.dueDate, totalCents: document.totalCents, currency: document.currency });
       const ocrJob = await enqueueDocumentProcessingJob({ tenantId: tenantContext.tenant.id, documentId: document.id, requestedByUserId: ctx.user.id, trigger: "upload" });
       await recordAudit({
         tenantId: tenantContext.tenant.id,
@@ -144,6 +147,7 @@ export const documentsRouter = router({
       requireDocumentWrite(tenantContext.membership.role);
       const updated = await updateDocumentForTenant(tenantContext.tenant.id, input.id, input);
       if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Documento não encontrado." });
+      await createOrUpdatePaymentFromDocument({ tenantId: tenantContext.tenant.id, documentId: updated.id, createdByUserId: ctx.user.id, documentType: updated.documentType, entityName: updated.entityName, dueDate: updated.dueDate, totalCents: updated.totalCents, currency: updated.currency });
       await recordAudit({
         tenantId: tenantContext.tenant.id,
         actorUserId: ctx.user.id,
@@ -153,4 +157,12 @@ export const documentsRouter = router({
       });
       return updated;
     }),
+  moveFolder: protectedProcedure.input(z.object({ id: z.number().int().positive(), finalFolder: z.string().min(2).max(512).regex(/^\//, "A pasta deve começar por /.") })).mutation(async ({ ctx, input }) => {
+    const tenantContext = await getOrCreateTenantContext(ctx.user);
+    requireDocumentWrite(tenantContext.membership.role);
+    const moved = await moveDocumentToFolder(tenantContext.tenant.id, input.id, input.finalFolder);
+    if (!moved) throw new TRPCError({ code: "NOT_FOUND", message: "Documento não encontrado." });
+    await recordAudit({ tenantId: tenantContext.tenant.id, actorUserId: ctx.user.id, action: "document.folder_moved", resourceType: "document", resourceId: String(input.id), metadata: { finalFolder: input.finalFolder } });
+    return moved;
+  }),
 });

@@ -16,6 +16,8 @@ import SettingsPage from "./pages/Settings";
 import IntegrationsPage from "./pages/Integrations";
 import OrganizationPage from "./pages/Organization";
 import AuditPage from "./pages/Audit";
+import FoldersPage from "./pages/Folders";
+import PaymentsPage from "./pages/Payments";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -24,6 +26,8 @@ function Router() {
       <DashboardLayout>
         <Route path={"/"} component={Dashboard} />
         <Route path={"/inbox"} component={InboxPage} />
+        <Route path={"/pastas"} component={FoldersPage} />
+        <Route path={"/pagamentos"} component={PaymentsPage} />
         <Route path={"/extratos"} component={BankImportPage} />
         <Route path={"/conciliacao"} component={ReconciliationPage} />
         <Route path={"/regras"} component={RulesPage} />

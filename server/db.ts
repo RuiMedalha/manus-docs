@@ -13,6 +13,7 @@ import {
   integrationConnections,
   InsertUser,
   ocrProcessingConfigs,
+  paymentSchedules,
   reconciliationSuggestions,
   reconciliations,
   tenantInvitations,
@@ -398,6 +399,13 @@ export async function getDocumentForTenant(tenantId: number, id: number) {
   return result[0];
 }
 
+export async function moveDocumentToFolder(tenantId: number, id: number, finalFolder: string) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.update(documents).set({ finalFolder }).where(and(eq(documents.tenantId, tenantId), eq(documents.id, id)));
+  return getDocumentForTenant(tenantId, id);
+}
+
 export async function findDocumentDuplicates(
   tenantId: number,
   candidate: { sha256: string; documentNumber?: string; totalCents?: number; documentDate?: string },
@@ -510,6 +518,39 @@ export async function createFinancialRecordFromDocument(input: { tenantId: numbe
   const result = await db.insert(financialRecords).values({ tenantId: input.tenantId, documentId: input.documentId, recordType: input.documentType === "fatura_emitida" ? "invoice" : "expense", externalReference: input.documentNumber ?? null, counterparty: input.entityName ?? null, recordDate: input.documentDate ?? null, amountCents: input.totalCents, currency: input.currency });
   const id = Number((result as unknown as { insertId: number }).insertId);
   const rows = await db.select().from(financialRecords).where(and(eq(financialRecords.tenantId, input.tenantId), eq(financialRecords.id, id))).limit(1);
+  return rows[0];
+}
+
+export async function listPaymentSchedulesForTenant(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(paymentSchedules).where(eq(paymentSchedules.tenantId, tenantId)).orderBy(asc(paymentSchedules.dueDate), desc(paymentSchedules.id)).limit(500);
+}
+
+export async function createPaymentSchedule(input: typeof paymentSchedules.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const result = await db.insert(paymentSchedules).values(input);
+  const id = Number((result as unknown as { insertId: number }).insertId);
+  const rows = await db.select().from(paymentSchedules).where(and(eq(paymentSchedules.tenantId, input.tenantId), eq(paymentSchedules.id, id))).limit(1);
+  if (!rows[0]) throw new Error("Não foi possível criar o pagamento.");
+  return rows[0];
+}
+
+export async function updatePaymentScheduleForTenant(tenantId: number, id: number, input: { counterparty?: string; dueDate?: string; amountCents?: number; currency?: string; status?: "pendente" | "pago" | "cancelado"; paidAt?: string | null; notes?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.update(paymentSchedules).set(input).where(and(eq(paymentSchedules.tenantId, tenantId), eq(paymentSchedules.id, id)));
+  const rows = await db.select().from(paymentSchedules).where(and(eq(paymentSchedules.tenantId, tenantId), eq(paymentSchedules.id, id))).limit(1);
+  return rows[0];
+}
+
+export async function createOrUpdatePaymentFromDocument(input: { tenantId: number; documentId: number; createdByUserId: number; documentType: "fatura_recebida" | "fatura_emitida" | "recibo" | "comprovativo" | "encomenda" | "outro"; entityName: string | null; dueDate: string | null; totalCents: number | null; currency: string }) {
+  if (input.documentType !== "fatura_recebida" || !input.dueDate || input.totalCents === null) return undefined;
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.insert(paymentSchedules).values({ tenantId: input.tenantId, documentId: input.documentId, createdByUserId: input.createdByUserId, counterparty: input.entityName || "Entidade não identificada", dueDate: input.dueDate, amountCents: input.totalCents, currency: input.currency }).onDuplicateKeyUpdate({ set: { counterparty: input.entityName || "Entidade não identificada", dueDate: input.dueDate, amountCents: input.totalCents, currency: input.currency } });
+  const rows = await db.select().from(paymentSchedules).where(and(eq(paymentSchedules.tenantId, input.tenantId), eq(paymentSchedules.documentId, input.documentId))).limit(1);
   return rows[0];
 }
 

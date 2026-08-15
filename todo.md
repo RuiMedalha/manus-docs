@@ -30,3 +30,12 @@
 - [x] Adicionar seleção múltipla de documentos e processamento OCR em lote na Inbox.
 - [x] Limitar a seleção OCR em lote a 20 documentos e apresentar feedback claro na Inbox.
 - [x] Adicionar testes dos estados, tentativas e limites de lote da fila OCR.
+- [x] Definir a navegação e o modelo funcional de pastas lógicas e pagamentos.
+- [x] Tornar a estrutura de pastas lógicas navegável e abrir os documentos a partir de cada pasta.
+- [x] Permitir mover documentos entre pastas lógicas, mantendo a referência segura no armazenamento de objetos.
+- [x] Criar o modelo multi-tenant de pagamentos com vencimento, valor, estado e ligação opcional ao documento.
+- [ ] Criar o calendário de pagamentos com visão mensal, resumo de vencidos e confirmação de pagamento.
+- [ ] Validar os fluxos de pastas e pagamentos com testes, interface responsiva e documentação.
+- [ ] Inspecionar o repositório Git indicado e preparar a sincronização segura do projeto.
+- [ ] Adicionar configuração de produção e guia de implantação para domínio próprio e VPS.
+- [ ] Validar a configuração de implantação e publicar o código no repositório remoto autorizado.

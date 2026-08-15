@@ -50,3 +50,7 @@ O modo automático usa o mesmo processador e deve ser ativado apenas depois de a
 ## Notas de evolução
 
 Esta implementação utiliza a autenticação de sessão já disponível no ambiente gerido. Para uma instalação independente, a camada de identidade pode ser substituída por email/password com bcrypt, JWT e refresh tokens, preservando os modelos de membros e tenant. Uma evolução futura poderá substituir o processador gerido por uma fila Redis/BullMQ dedicada para throughput mais elevado, e ativar as sincronizações reais de terceiros.
+
+## Repositório, domínio e VPS
+
+O projeto pode continuar no alojamento gerido atual, que permite associar um domínio próprio sem gerir servidores. Para uma instalação numa VPS, consulte [`deploy/README-VPS.md`](deploy/README-VPS.md). A pasta `deploy/` contém uma configuração Docker Compose independente com MySQL e Caddy, mas a autenticação e o armazenamento geridos precisam de ser substituídos por equivalentes externos antes da migração efetiva.

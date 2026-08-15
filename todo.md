@@ -34,8 +34,22 @@
 - [x] Tornar a estrutura de pastas lógicas navegável e abrir os documentos a partir de cada pasta.
 - [x] Permitir mover documentos entre pastas lógicas, mantendo a referência segura no armazenamento de objetos.
 - [x] Criar o modelo multi-tenant de pagamentos com vencimento, valor, estado e ligação opcional ao documento.
-- [ ] Criar o calendário de pagamentos com visão mensal, resumo de vencidos e confirmação de pagamento.
-- [ ] Validar os fluxos de pastas e pagamentos com testes, interface responsiva e documentação.
+- [x] Criar o calendário de pagamentos com visão mensal, resumo de vencidos e confirmação de pagamento.
+- [x] Validar os fluxos de pastas e pagamentos com testes, interface responsiva e documentação.
 - [ ] Inspecionar o repositório Git indicado e preparar a sincronização segura do projeto.
 - [ ] Adicionar configuração de produção e guia de implantação para domínio próprio e VPS.
 - [ ] Validar a configuração de implantação e publicar o código no repositório remoto autorizado.
+- [x] Definir uma direção visual premium para controlo financeiro e documental.
+- [x] Redesenhar o dashboard com indicadores, prioridades e visualizações operacionais.
+- [x] Consolidar marca, paleta, tipografia, estados e superfícies próprias do DocuFlux no layout.
+- [x] Aplicar os tokens globais da paleta verde-petróleo e menta operacional.
+- [x] Rever visualmente a identidade DocuFlux para eliminar o aspeto de dashboard SaaS genérico.
+- [x] Refinar a navegação, os estados vazios e a responsividade do backoffice.
+- [x] Validar visualmente o novo dashboard em desktop e mobile.
+- [x] Aplicar a identidade DocuFlux de forma consistente em Inbox, Pastas, Pagamentos, Extratos, Conciliação e Definições.
+- [x] Validar os estados vazios e a responsividade das principais rotas do backoffice em desktop e mobile.
+- [x] Realizar uma revisão visual final verificável da identidade do produto após a aplicação transversal.
+- [x] Adicionar testes específicos aos fluxos de pastas e pagamentos e executar a suite completa.
+- [x] Aplicar explicitamente a identidade DocuFlux em Inbox, Pastas, Pagamentos, Extratos, Conciliação e Definições.
+- [x] Validar em mobile Extratos, Conciliação e Definições, ajustando os respetivos estados vazios.
+- [x] Executar uma revisão visual final verificável depois da aplicação transversal da marca.

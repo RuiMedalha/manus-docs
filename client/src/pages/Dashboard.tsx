@@ -1,64 +1,48 @@
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
-import { ArrowUpRight, FileWarning, FolderOpen, Landmark, ShieldCheck } from "lucide-react";
+import { Area, AreaChart, ResponsiveContainer, Tooltip } from "recharts";
+import { ArrowUpRight, BellRing, CalendarClock, CheckCircle2, ChevronRight, CircleDollarSign, FileSearch, Files, FolderOpen, Landmark, ScanLine, ShieldCheck, Sparkles, TriangleAlert } from "lucide-react";
 import { Link } from "wouter";
 
 const statusLabel = { novo: "Novos", processado: "Processados", em_revisao: "Em revisão", arquivado: "Arquivados" } as const;
+const formatMoney = (cents: number) => new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(cents / 100);
 
 export default function Dashboard() {
   const context = trpc.tenant.context.useQuery();
   const documents = trpc.documents.list.useQuery();
-  const counts = documents.data?.reduce<Record<string, number>>((acc, doc) => {
-    acc[doc.status] = (acc[doc.status] ?? 0) + 1;
-    return acc;
-  }, {}) ?? {};
+  const payments = trpc.payments.list.useQuery();
+  const counts = documents.data?.reduce<Record<string, number>>((acc, doc) => { acc[doc.status] = (acc[doc.status] ?? 0) + 1; return acc; }, {}) ?? {};
+  const today = new Date().toISOString().slice(0, 10);
+  const pendingPayments = payments.data?.filter(payment => payment.status === "pendente") ?? [];
+  const overduePayments = pendingPayments.filter(payment => payment.dueDate < today);
+  const dueThisMonth = pendingPayments.reduce((sum, payment) => sum + payment.amountCents, 0);
+  const activity = buildActivity(documents.data ?? []);
+  const latest = documents.data?.slice(0, 5) ?? [];
 
-  return (
-    <div className="mx-auto max-w-7xl space-y-7 px-1 py-3 md:px-5 md:py-6">
-      <header className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-8 text-white md:px-9">
-        <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-teal-400/20 blur-2xl" />
-        <div className="relative flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="mb-2 text-sm font-medium tracking-[0.18em] text-teal-300 uppercase">Operações financeiras</p>
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Bom trabalho. O seu fluxo está sob controlo.</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Centralize documentos, extratos e decisões de conciliação num único espaço seguro.</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-sm">
-            <p className="text-xs text-slate-300">Organização ativa</p>
-            <p className="mt-1 font-medium">{context.data?.tenant.name ?? "A carregar…"}</p>
-          </div>
-        </div>
-      </header>
+  return <div className="dashboard-grid mx-auto min-h-full max-w-[1550px] space-y-6 px-1 py-3 md:px-5 md:py-6">
+    <header className="relative overflow-hidden rounded-[1.75rem] bg-[#132d32] px-6 py-7 text-white shadow-[0_22px_60px_-26px_rgba(10,51,54,0.75)] md:px-9 md:py-9">
+      <div className="absolute inset-y-0 right-0 w-[44%] bg-[radial-gradient(circle_at_70%_38%,rgba(85,236,197,0.28),transparent_42%),radial-gradient(circle_at_95%_75%,rgba(66,154,159,0.34),transparent_43%)]" />
+      <div className="absolute right-9 top-7 hidden h-28 w-28 rounded-full border border-white/10 md:block" /><div className="absolute bottom-[-45px] right-[100px] hidden h-44 w-44 rounded-full border border-white/10 md:block" />
+      <div className="relative flex flex-col gap-7 xl:flex-row xl:items-end xl:justify-between"><div className="max-w-3xl"><div className="mb-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-300"><span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_0_5px_rgba(110,231,183,0.12)]" />Command center / operação ativa</div><h1 className="max-w-2xl text-3xl font-extrabold tracking-[-0.045em] text-white md:text-5xl">O controlo financeiro começa aqui.</h1><p className="mt-4 max-w-xl text-sm leading-6 text-emerald-50/75 md:text-base">Veja o que exige decisão, acompanhe a caixa e mantenha todos os documentos no fluxo certo.</p></div><div className="grid grid-cols-2 gap-3 sm:flex"><HeroSignal label="Organização" value={context.data?.tenant.name ?? "A carregar"} icon={ShieldCheck} /><HeroSignal label="Estado" value="Operacional" icon={CheckCircle2} /></div></div>
+    </header>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Object.entries(statusLabel).map(([status, label]) => (
-          <Card key={status} className="border-slate-200 shadow-sm">
-            <CardContent className="flex items-center justify-between p-5">
-              <div><p className="text-sm text-slate-500">{label}</p><p className="mt-1 text-3xl font-semibold text-slate-900">{documents.isLoading ? "—" : counts[status] ?? 0}</p></div>
-              <div className="rounded-xl bg-teal-50 p-3 text-teal-700"><FolderOpen className="h-5 w-5" /></div>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><MetricCard label="Documentos a tratar" value={documents.isLoading ? "—" : String((counts.novo ?? 0) + (counts.em_revisao ?? 0))} detail={`${counts.em_revisao ?? 0} em revisão`} icon={FileSearch} accent="teal" href="/inbox" /><MetricCard label="Saídas previstas" value={formatMoney(dueThisMonth)} detail={`${pendingPayments.length} pagamento(s) pendente(s)`} icon={CircleDollarSign} accent="blue" href="/pagamentos" /><MetricCard label="Vencidos" value={formatMoney(overduePayments.reduce((sum, p) => sum + p.amountCents, 0))} detail={`${overduePayments.length} ocorrência(s) a regularizar`} icon={TriangleAlert} accent="amber" href="/pagamentos" /><MetricCard label="Arquivo organizado" value={documents.isLoading ? "—" : String(counts.arquivado ?? 0)} detail={`${counts.processado ?? 0} documentos processados`} icon={FolderOpen} accent="violet" href="/pastas" /></section>
 
-      <section className="grid gap-5 lg:grid-cols-[1.55fr_1fr]">
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0"><CardTitle className="text-base">Documentos recentes</CardTitle><Link href="/inbox" className="flex items-center gap-1 text-sm font-medium text-teal-700 hover:text-teal-800">Abrir Inbox <ArrowUpRight className="h-4 w-4" /></Link></CardHeader>
-          <CardContent className="space-y-2">
-            {documents.isLoading ? <><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></> : documents.data?.length ? documents.data.slice(0, 5).map(doc => <div key={doc.id} className="flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3"><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-800">{doc.originalFilename}</p><p className="mt-1 text-xs text-slate-500">{doc.entityName || "Sem entidade"} · {new Date(doc.createdAt).toLocaleDateString("pt-PT")}</p></div><Badge variant="secondary" className="ml-3 bg-slate-100 text-slate-600">{statusLabel[doc.status]}</Badge></div>) : <div className="py-10 text-center text-sm text-slate-500">Ainda não existem documentos na Inbox.</div>}
-          </CardContent>
-        </Card>
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader><CardTitle className="text-base">Próximos passos</CardTitle></CardHeader>
-          <CardContent className="space-y-4 text-sm text-slate-600">
-            <div className="flex gap-3"><span className="rounded-lg bg-amber-50 p-2 text-amber-700"><FileWarning className="h-4 w-4" /></span><p><strong className="block text-slate-800">Carregue os documentos recebidos</strong>A Inbox verifica repetições pelo hash do ficheiro.</p></div>
-            <div className="flex gap-3"><span className="rounded-lg bg-sky-50 p-2 text-sky-700"><Landmark className="h-4 w-4" /></span><p><strong className="block text-slate-800">Importe o extrato bancário</strong>Mapeie as colunas uma única vez e reutilize o modelo.</p></div>
-            <div className="flex gap-3"><span className="rounded-lg bg-emerald-50 p-2 text-emerald-700"><ShieldCheck className="h-4 w-4" /></span><p><strong className="block text-slate-800">Mantenha a rastreabilidade</strong>As decisões críticas ficam registadas por organização.</p></div>
-          </CardContent>
-        </Card>
-      </section>
-    </div>
-  );
+    <section className="grid gap-5 xl:grid-cols-[1.45fr_0.85fr]"><Card className="overflow-hidden border-0 bg-white shadow-[0_16px_45px_-28px_rgba(25,66,73,0.55)]"><CardContent className="p-0"><div className="flex flex-col gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Pulso documental</p><h2 className="mt-1 text-xl font-bold tracking-tight text-slate-900">Entrada de documentos</h2></div><Badge variant="secondary" className="w-fit bg-teal-50 px-3 py-1 text-teal-700">Últimos 7 dias</Badge></div><div className="h-56 px-2 pt-3">{documents.isLoading ? <div className="p-6"><Skeleton className="h-44 w-full" /></div> : activity.some(item => item.total) ? <ResponsiveContainer width="100%" height="100%"><AreaChart data={activity} margin={{ left: -20, right: 12, top: 12, bottom: 0 }}><defs><linearGradient id="flux" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#16a394" stopOpacity={0.32} /><stop offset="100%" stopColor="#16a394" stopOpacity={0.02} /></linearGradient></defs><Tooltip cursor={{ stroke: "#b7d4d0", strokeWidth: 1 }} contentStyle={{ borderRadius: 12, border: "1px solid #d8ece9", boxShadow: "0 12px 30px -12px rgba(16,73,72,.25)" }} formatter={(value: number) => [value, "documentos"]} labelStyle={{ color: "#2e5960" }} /><Area type="monotone" dataKey="total" stroke="#168f83" strokeWidth={3} fill="url(#flux)" /></AreaChart></ResponsiveContainer> : <div className="flex h-full flex-col items-center justify-center text-center"><ScanLine className="h-9 w-9 text-teal-200" /><p className="mt-3 font-semibold text-slate-700">Ainda não há atividade</p><p className="mt-1 max-w-xs text-sm text-slate-500">O gráfico começa a ganhar forma quando os documentos entram na Inbox.</p></div>}</div><div className="grid grid-cols-3 border-t border-slate-100"><MiniStat label="Novos" value={counts.novo ?? 0} /><MiniStat label="Processados" value={counts.processado ?? 0} /><MiniStat label="Revisão" value={counts.em_revisao ?? 0} /></div></CardContent></Card>
+      <section className="rounded-[1.35rem] bg-[#f1f8f7] p-5 shadow-[0_14px_40px_-32px_rgba(20,83,76,0.75)]"><div className="flex items-start justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Prioridades</p><h2 className="mt-1 text-xl font-bold tracking-tight text-slate-900">Ações de hoje</h2></div><BellRing className="h-5 w-5 text-teal-700" /></div><div className="mt-5 space-y-3"><Priority icon={overduePayments.length ? TriangleAlert : CalendarClock} tone={overduePayments.length ? "amber" : "teal"} title={overduePayments.length ? `${overduePayments.length} pagamento(s) em atraso` : "Calendário de pagamentos sob controlo"} detail={overduePayments.length ? "Abra o calendário e confirme a liquidação ou reagende o vencimento." : "Não existem vencimentos em atraso neste momento."} href="/pagamentos" /><Priority icon={Files} tone="blue" title={`${(counts.novo ?? 0) + (counts.em_revisao ?? 0)} documento(s) a tratar`} detail="Reveja as sugestões OCR e confirme os metadados antes de arquivar." href="/inbox" /><Priority icon={Landmark} tone="violet" title="Conciliação bancária" detail="Importe um extrato para gerar sugestões de associação aos seus registos." href="/extratos" /></div></section>
+    </section>
+
+    <section className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]"><Card className="border-0 bg-white shadow-[0_16px_45px_-28px_rgba(25,66,73,0.55)]"><CardContent className="p-0"><div className="flex items-center justify-between border-b border-slate-100 p-5"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Linha de entrada</p><h2 className="mt-1 text-xl font-bold tracking-tight text-slate-900">Documentos recentes</h2></div><Link href="/inbox"><Button variant="ghost" className="text-teal-700 hover:bg-teal-50 hover:text-teal-800">Abrir Inbox <ArrowUpRight className="ml-2 h-4 w-4" /></Button></Link></div><div className="divide-y divide-slate-100">{documents.isLoading ? <div className="space-y-3 p-5"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div> : latest.length ? latest.map(doc => <div className="flex items-center justify-between gap-3 px-5 py-4" key={doc.id}><div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500"><Files className="h-4 w-4" /></div><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800">{doc.originalFilename}</p><p className="mt-1 text-xs text-slate-500">{doc.entityName || "Sem entidade"} · {new Date(doc.createdAt).toLocaleDateString("pt-PT")}</p></div></div><Badge className={doc.status === "em_revisao" ? "bg-amber-100 text-amber-800 hover:bg-amber-100" : doc.status === "processado" ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100" : "bg-slate-100 text-slate-600 hover:bg-slate-100"}>{statusLabel[doc.status]}</Badge></div>) : <div className="px-5 py-12 text-center"><Files className="mx-auto h-9 w-9 text-slate-200" /><p className="mt-3 font-semibold text-slate-700">A sua operação começa aqui</p><p className="mt-1 text-sm text-slate-500">Carregue o primeiro documento para iniciar o fluxo.</p></div>}</div></CardContent></Card>
+      <Card className="overflow-hidden border-0 bg-[#173b42] text-white shadow-[0_18px_45px_-28px_rgba(11,46,54,.8)]"><CardContent className="relative p-6"><div className="absolute -right-10 -top-10 h-36 w-36 rounded-full border border-white/10" /><div className="relative"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-emerald-300"><Sparkles className="h-5 w-5" /></div><p className="mt-5 text-xs font-bold uppercase tracking-[0.17em] text-emerald-300">Inteligência operacional</p><h2 className="mt-2 text-2xl font-bold tracking-tight">A automação reduz o trabalho repetitivo.</h2><p className="mt-3 text-sm leading-6 text-slate-300">Envie documentos para OCR, valide as sugestões e deixe o DocuFlux manter o rasto de cada decisão.</p><Link href="/inbox"><Button className="mt-6 bg-emerald-300 text-[#14393e] hover:bg-emerald-200">Processar documentos <ChevronRight className="ml-2 h-4 w-4" /></Button></Link></div></CardContent></Card>
+    </section>
+  </div>;
 }
+
+function buildActivity(documents: Array<{ createdAt: Date }>) { const days = Array.from({ length: 7 }, (_, index) => { const date = new Date(); date.setDate(date.getDate() - (6 - index)); const key = date.toISOString().slice(0, 10); return { key, label: date.toLocaleDateString("pt-PT", { weekday: "short" }).replace(".", ""), total: 0 }; }); const map = new Map(days.map(day => [day.key, day])); for (const document of documents) { const key = new Date(document.createdAt).toISOString().slice(0, 10); const day = map.get(key); if (day) day.total += 1; } return days; }
+function HeroSignal({ label, value, icon: Icon }: { label: string; value: string; icon: typeof ShieldCheck }) { return <div className="min-w-32 rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-sm"><div className="flex items-center gap-2 text-[11px] text-emerald-50/60"><Icon className="h-3.5 w-3.5 text-emerald-300" />{label}</div><p className="mt-2 max-w-40 truncate text-sm font-bold text-white" title={value}>{value}</p></div>; }
+function MetricCard({ label, value, detail, icon: Icon, accent, href }: { label: string; value: string; detail: string; icon: typeof Files; accent: "teal" | "blue" | "amber" | "violet"; href: string }) { const styles = { teal: "bg-teal-50 text-teal-700", blue: "bg-sky-50 text-sky-700", amber: "bg-amber-50 text-amber-700", violet: "bg-violet-50 text-violet-700" }; return <Link href={href}><Card className="group h-full border-0 bg-white shadow-[0_14px_35px_-28px_rgba(25,66,73,0.5)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_38px_-25px_rgba(25,66,73,0.55)]"><CardContent className="p-5"><div className="flex items-start justify-between"><p className="text-sm font-medium text-slate-500">{label}</p><span className={`rounded-xl p-2.5 ${styles[accent]}`}><Icon className="h-5 w-5" /></span></div><p className="font-mono-data mt-5 text-2xl font-medium tracking-[-0.06em] text-slate-900">{value}</p><p className="mt-2 text-xs text-slate-500">{detail}</p></CardContent></Card></Link>; }
+function MiniStat({ label, value }: { label: string; value: number }) { return <div className="p-4"><p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">{label}</p><p className="font-mono-data mt-2 text-xl font-medium text-slate-800">{value}</p></div>; }
+function Priority({ icon: Icon, tone, title, detail, href }: { icon: typeof Landmark; tone: "teal" | "amber" | "blue" | "violet"; title: string; detail: string; href: string }) { const styles = { teal: "bg-teal-100 text-teal-700", amber: "bg-amber-100 text-amber-700", blue: "bg-sky-100 text-sky-700", violet: "bg-violet-100 text-violet-700" }; return <Link href={href} className="block rounded-2xl bg-white p-3.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><div className="flex gap-3"><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${styles[tone]}`}><Icon className="h-4 w-4" /></span><div><p className="text-sm font-bold text-slate-800">{title}</p><p className="mt-1 text-xs leading-5 text-slate-500">{detail}</p></div></div></Link>; }

@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { canPerform } from "../security";
+import { resolvePaymentSettlement } from "../operational-rules";
 import { createOrUpdatePaymentFromDocument, createPaymentSchedule, getOrCreateTenantContext, listDocumentsForTenant, listPaymentSchedulesForTenant, recordAudit, updatePaymentScheduleForTenant } from "../db";
 import { protectedProcedure, router } from "../_core/trpc";
 
@@ -17,7 +18,7 @@ export const paymentsRouter = router({
   }),
   updateStatus: protectedProcedure.input(z.object({ id: z.number().int().positive(), status: paymentStatus, paidAt: z.string().date().nullable().optional() })).mutation(async ({ ctx, input }) => {
     const tenant = await getOrCreateTenantContext(ctx.user); requirePaymentWrite(tenant.membership.role);
-    const paidAt = input.status === "pago" ? (input.paidAt ?? new Date().toISOString().slice(0, 10)) : null;
+    const paidAt = resolvePaymentSettlement(input.status, input.paidAt);
     const payment = await updatePaymentScheduleForTenant(tenant.tenant.id, input.id, { status: input.status, paidAt });
     if (!payment) throw new TRPCError({ code: "NOT_FOUND", message: "Pagamento não encontrado." });
     await recordAudit({ tenantId: tenant.tenant.id, actorUserId: ctx.user.id, action: `payment.${input.status}`, resourceType: "paymentSchedule", resourceId: String(payment.id), metadata: { paidAt } });

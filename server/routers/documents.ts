@@ -16,6 +16,7 @@ import {
   updateDocumentForTenant,
 } from "../db";
 import { applyFolderTemplate, ruleMatchesDocument } from "../document-rules";
+import { isValidLogicalFolderPath } from "../operational-rules";
 import { canPerform } from "../security";
 import { validateDocumentUpload } from "../upload-policy";
 import { protectedProcedure, router } from "../_core/trpc";
@@ -157,7 +158,7 @@ export const documentsRouter = router({
       });
       return updated;
     }),
-  moveFolder: protectedProcedure.input(z.object({ id: z.number().int().positive(), finalFolder: z.string().min(2).max(512).regex(/^\//, "A pasta deve começar por /.") })).mutation(async ({ ctx, input }) => {
+  moveFolder: protectedProcedure.input(z.object({ id: z.number().int().positive(), finalFolder: z.string().min(2).max(512).refine(isValidLogicalFolderPath, "Indique uma pasta absoluta e segura, sem segmentos vazios ou relativos.") })).mutation(async ({ ctx, input }) => {
     const tenantContext = await getOrCreateTenantContext(ctx.user);
     requireDocumentWrite(tenantContext.membership.role);
     const moved = await moveDocumentToFolder(tenantContext.tenant.id, input.id, input.finalFolder);

@@ -1,0 +1,22 @@
+# Project TODO
+
+- [x] Documentar as decisões de arquitetura e os limites do MVP na infraestrutura gerida.
+- [x] Definir o esquema multi-tenant com `tenantId` obrigatório em todas as entidades de domínio.
+- [x] Implementar organizações, membros, convites e papéis Admin, Contabilidade, Operador e Aprovador.
+- [x] Registar eventos de auditoria para ações críticas, incluindo login, upload, edição, aprovação, importação e conciliação.
+- [x] Criar navegação de backoffice responsiva com áreas Inbox, Extratos, Conciliação, Regras, Integrações e Definições.
+- [x] Implementar o upload seguro de PDF, JPG, PNG e DOCX para armazenamento de objetos.
+- [x] Criar Inbox de documentos com pesquisa, filtros de estado, visualização e edição de metadados.
+- [x] Implementar prevenção de duplicados por hash de ficheiro e heurística de número, valor e data.
+- [x] Implementar padrões e regras de pastas configuráveis por tenant.
+- [x] Implementar o assistente de importação CSV com mapeamento reutilizável por tenant.
+- [x] Normalizar movimentos para `BankTransaction` e bloquear reimportações duplicadas.
+- [x] Implementar sugestões de conciliação forte, média e fraca, com aceitar e rejeitar.
+- [x] Preparar conectores de WooCommerce, Ifthenpay e Moloni, sem dependências externas ativas.
+- [x] Adicionar manifesto PWA e comportamentos mobile-first para captura e upload rápido de documentos.
+- [x] Criar testes unitários para regras de pastas e conciliação, e testes essenciais dos fluxos de autenticação e upload.
+- [x] Escrever README com configuração local, variáveis de ambiente e arquitetura do MVP.
+- [x] Adicionar captura rápida por câmara na Inbox mobile, com validações de upload testadas.
+- [x] Estruturar ações stub para sync WooCommerce, callback Ifthenpay e ingestão Moloni.
+- [x] Adicionar Docker Compose de desenvolvimento com MySQL, Redis e MinIO compatíveis com a stack implementada.
+- [x] Verificar tipos, testes e experiência visual em desktop e mobile.

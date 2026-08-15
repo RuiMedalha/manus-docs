@@ -1,0 +1,1 @@
+ALTER TABLE `documents` ADD `sourceAddress` varchar(320);

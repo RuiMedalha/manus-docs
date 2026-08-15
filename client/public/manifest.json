@@ -1,0 +1,9 @@
+{
+  "name": "DocuFlux",
+  "short_name": "DocuFlux",
+  "description": "Gestão documental e financeira por organização.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f766e"
+}

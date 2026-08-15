@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, like, or } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, like, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -29,6 +29,7 @@ import {
 import { ENV } from "./_core/env";
 import { normaliseSlug, type TenantRole } from "./security";
 import { canClaimOcrJob, statusAfterOcrFailure } from "./ocr-queue";
+import { resolveDocumentCrmStatus } from "./document-crm-status";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -428,7 +429,16 @@ export async function listDocumentsForTenant(tenantId: number, filters?: { statu
     const value = `%${filters.query.trim()}%`;
     conditions.push(or(like(documents.originalFilename, value), like(documents.entityName, value), like(documents.documentNumber, value))!);
   }
-  return db.select().from(documents).where(and(...conditions)).orderBy(desc(documents.createdAt));
+  const rows = await db
+    .select({ ...getTableColumns(documents), crmExternalId: businessEntities.externalCrmId, crmLastSyncAt: businessEntities.lastCrmSyncAt })
+    .from(documents)
+    .leftJoin(businessEntities, and(eq(documents.entityId, businessEntities.id), eq(businessEntities.tenantId, tenantId)))
+    .where(and(...conditions))
+    .orderBy(desc(documents.createdAt));
+  return rows.map(row => ({
+    ...row,
+    crmStatus: resolveDocumentCrmStatus(row.entityId, row.crmExternalId),
+  }));
 }
 
 export async function getOcrProcessingConfigForTenant(tenantId: number) {

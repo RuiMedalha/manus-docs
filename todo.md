@@ -70,3 +70,6 @@
 - [x] Aplicar explicitamente a identidade DocuFlux em Inbox, Pastas, Pagamentos, Extratos, Conciliação e Definições.
 - [x] Validar em mobile Extratos, Conciliação e Definições, ajustando os respetivos estados vazios.
 - [x] Executar uma revisão visual final verificável depois da aplicação transversal da marca.
+- [x] Definir os estados CRM visíveis por documento e expô-los apenas no tenant correto.
+- [x] Apresentar na Inbox um indicador de contacto sincronizado, pendente ou sem associação CRM.
+- [x] Cobrir o estado CRM documental com testes e validação responsiva.

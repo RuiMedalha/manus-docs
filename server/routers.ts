@@ -7,6 +7,7 @@ import { bankImportRouter } from "./routers/bank-import";
 import { folderRulesRouter } from "./routers/folder-rules";
 import { reconciliationRouter } from "./routers/reconciliation";
 import { integrationsRouter } from "./routers/integrations";
+import { ocrRouter } from "./routers/ocr";
 import { tenantRouter } from "./routers/tenant";
 
 export const appRouter = router({
@@ -28,6 +29,7 @@ export const appRouter = router({
   folderRules: folderRulesRouter,
   reconciliation: reconciliationRouter,
   integrations: integrationsRouter,
+  ocr: ocrRouter,
 });
 
 export type AppRouter = typeof appRouter;

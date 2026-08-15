@@ -20,3 +20,13 @@
 - [x] Estruturar ações stub para sync WooCommerce, callback Ifthenpay e ingestão Moloni.
 - [x] Adicionar Docker Compose de desenvolvimento com MySQL, Redis e MinIO compatíveis com a stack implementada.
 - [x] Verificar tipos, testes e experiência visual em desktop e mobile.
+- [x] Definir o processamento assíncrono de OCR e classificação compatível com o ambiente gerido.
+- [x] Criar fila de processamento com estados, tentativas, isolamento por tenant e auditoria.
+- [x] Extrair texto de documentos suportados e produzir sugestões estruturadas de metadados.
+- [x] Apresentar sugestões de OCR na Inbox, com aplicação explícita e revisão humana.
+- [x] Cobrir a fila e a classificação com testes e documentar a operação do fluxo.
+- [x] Criar o acionamento automático da fila de OCR para documentos pendentes.
+- [x] Criar o acionamento manual de OCR por documento e por lote na Inbox.
+- [x] Adicionar seleção múltipla de documentos e processamento OCR em lote na Inbox.
+- [x] Limitar a seleção OCR em lote a 20 documentos e apresentar feedback claro na Inbox.
+- [x] Adicionar testes dos estados, tentativas e limites de lote da fila OCR.

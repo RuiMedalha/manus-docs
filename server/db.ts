@@ -6,11 +6,13 @@ import {
   bankImportTemplates,
   bankImports,
   bankTransactions,
+  documentProcessingJobs,
   documents,
   financialRecords,
   folderRules,
   integrationConnections,
   InsertUser,
+  ocrProcessingConfigs,
   reconciliationSuggestions,
   reconciliations,
   tenantInvitations,
@@ -20,6 +22,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { normaliseSlug, type TenantRole } from "./security";
+import { canClaimOcrJob, statusAfterOcrFailure } from "./ocr-queue";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -307,6 +310,85 @@ export async function listDocumentsForTenant(tenantId: number, filters?: { statu
     conditions.push(or(like(documents.originalFilename, value), like(documents.entityName, value), like(documents.documentNumber, value))!);
   }
   return db.select().from(documents).where(and(...conditions)).orderBy(desc(documents.createdAt));
+}
+
+export async function getOcrProcessingConfigForTenant(tenantId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const rows = await db.select().from(ocrProcessingConfigs).where(eq(ocrProcessingConfigs.tenantId, tenantId)).limit(1);
+  if (rows[0]) return rows[0];
+  await db.insert(ocrProcessingConfigs).values({ tenantId });
+  const created = await db.select().from(ocrProcessingConfigs).where(eq(ocrProcessingConfigs.tenantId, tenantId)).limit(1);
+  if (!created[0]) throw new Error("Não foi possível criar a configuração de OCR.");
+  return created[0];
+}
+
+export async function updateOcrProcessingConfig(tenantId: number, input: { automaticEnabled?: boolean; scheduleCronTaskUid?: string | null; batchSize?: number; model?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await getOcrProcessingConfigForTenant(tenantId);
+  await db.update(ocrProcessingConfigs).set(input).where(eq(ocrProcessingConfigs.tenantId, tenantId));
+  return getOcrProcessingConfigForTenant(tenantId);
+}
+
+export async function getOcrProcessingConfigByTaskUid(taskUid: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(ocrProcessingConfigs).where(eq(ocrProcessingConfigs.scheduleCronTaskUid, taskUid)).limit(1);
+  return rows[0];
+}
+
+export async function enqueueDocumentProcessingJob(input: { tenantId: number; documentId: number; requestedByUserId?: number | null; trigger: "upload" | "manual" | "automatic" }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const document = await getDocumentForTenant(input.tenantId, input.documentId);
+  if (!document) return undefined;
+  const active = await db.select().from(documentProcessingJobs).where(and(eq(documentProcessingJobs.tenantId, input.tenantId), eq(documentProcessingJobs.documentId, input.documentId), or(eq(documentProcessingJobs.status, "pendente"), eq(documentProcessingJobs.status, "em_processamento")))).limit(1);
+  if (active[0]) return active[0];
+  await db.insert(documentProcessingJobs).values({ tenantId: input.tenantId, documentId: input.documentId, requestedByUserId: input.requestedByUserId ?? null, trigger: input.trigger });
+  const queued = await db.select().from(documentProcessingJobs).where(and(eq(documentProcessingJobs.tenantId, input.tenantId), eq(documentProcessingJobs.documentId, input.documentId), eq(documentProcessingJobs.status, "pendente"))).orderBy(desc(documentProcessingJobs.id)).limit(1);
+  return queued[0];
+}
+
+export async function listDocumentProcessingJobsForTenant(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(documentProcessingJobs).where(eq(documentProcessingJobs.tenantId, tenantId)).orderBy(desc(documentProcessingJobs.createdAt)).limit(200);
+}
+
+export async function getDocumentProcessingJobForTenant(tenantId: number, id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(documentProcessingJobs).where(and(eq(documentProcessingJobs.tenantId, tenantId), eq(documentProcessingJobs.id, id))).limit(1);
+  return rows[0];
+}
+
+export async function claimNextDocumentProcessingJob(tenantId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const candidates = await db.select().from(documentProcessingJobs).where(and(eq(documentProcessingJobs.tenantId, tenantId), eq(documentProcessingJobs.status, "pendente"))).orderBy(asc(documentProcessingJobs.createdAt)).limit(20);
+  const candidate = candidates.find(job => canClaimOcrJob(job));
+  if (!candidate) return undefined;
+  await db.update(documentProcessingJobs).set({ status: "em_processamento", attemptCount: candidate.attemptCount + 1, startedAt: new Date(), lastError: null }).where(and(eq(documentProcessingJobs.tenantId, tenantId), eq(documentProcessingJobs.id, candidate.id), eq(documentProcessingJobs.status, "pendente")));
+  const claimed = await getDocumentProcessingJobForTenant(tenantId, candidate.id);
+  return claimed?.status === "em_processamento" ? claimed : undefined;
+}
+
+export async function completeDocumentProcessingJob(tenantId: number, id: number, input: { extractedText: string; suggestion: Record<string, unknown>; confidence: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.update(documentProcessingJobs).set({ status: "concluido", extractedText: input.extractedText, suggestion: input.suggestion, confidence: input.confidence, completedAt: new Date(), lastError: null }).where(and(eq(documentProcessingJobs.tenantId, tenantId), eq(documentProcessingJobs.id, id), eq(documentProcessingJobs.status, "em_processamento")));
+  return getDocumentProcessingJobForTenant(tenantId, id);
+}
+
+export async function failDocumentProcessingJob(tenantId: number, id: number, message: string) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const job = await getDocumentProcessingJobForTenant(tenantId, id);
+  if (!job) return undefined;
+  const status = statusAfterOcrFailure(job.attemptCount, job.maxAttempts);
+  await db.update(documentProcessingJobs).set({ status, lastError: message.slice(0, 2000), completedAt: status === "falhou" ? new Date() : null }).where(and(eq(documentProcessingJobs.tenantId, tenantId), eq(documentProcessingJobs.id, id), eq(documentProcessingJobs.status, "em_processamento")));
+  return getDocumentProcessingJobForTenant(tenantId, id);
 }
 
 export async function getDocumentForTenant(tenantId: number, id: number) {

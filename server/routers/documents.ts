@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   createDocument,
   createFinancialRecordFromDocument,
+  enqueueDocumentProcessingJob,
   findDocumentDuplicates,
   getDocumentForTenant,
   getOrCreateTenantContext,
@@ -109,14 +110,16 @@ export const documentsRouter = router({
         finalFolder: suggestedFolder,
       });
       await createFinancialRecordFromDocument({ tenantId: tenantContext.tenant.id, documentId: document.id, documentType: document.documentType, documentNumber: document.documentNumber, entityName: document.entityName, documentDate: document.documentDate, totalCents: document.totalCents, currency: document.currency });
+      const ocrJob = await enqueueDocumentProcessingJob({ tenantId: tenantContext.tenant.id, documentId: document.id, requestedByUserId: ctx.user.id, trigger: "upload" });
       await recordAudit({
         tenantId: tenantContext.tenant.id,
         actorUserId: ctx.user.id,
         action: "document.uploaded",
         resourceType: "document",
         resourceId: String(document.id),
-        metadata: { filename: input.filename, suggestedFolder },
+        metadata: { filename: input.filename, suggestedFolder, ocrJobId: ocrJob?.id ?? null },
       });
+      if (ocrJob) await recordAudit({ tenantId: tenantContext.tenant.id, actorUserId: ctx.user.id, action: "ocr.queued", resourceType: "documentProcessingJob", resourceId: String(ocrJob.id), metadata: { documentId: document.id, trigger: "upload" } });
       return { document, fileUrl: stored.url };
     }),
   updateMetadata: protectedProcedure

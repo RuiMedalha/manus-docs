@@ -146,6 +146,52 @@ export const documents = mysqlTable(
   ],
 );
 
+export const ocrProcessingConfigs = mysqlTable(
+  "ocrProcessingConfigs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    tenantId: int("tenantId").notNull(),
+    automaticEnabled: boolean("automaticEnabled").default(false).notNull(),
+    scheduleCronTaskUid: varchar("scheduleCronTaskUid", { length: 65 }),
+    model: varchar("model", { length: 80 }).default("gemini-3-flash-preview").notNull(),
+    batchSize: int("batchSize").default(2).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("ocrProcessingConfigs_tenant_uq").on(table.tenantId),
+    index("ocrProcessingConfigs_schedule_idx").on(table.scheduleCronTaskUid),
+  ],
+);
+
+export const documentProcessingJobs = mysqlTable(
+  "documentProcessingJobs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    tenantId: int("tenantId").notNull(),
+    documentId: int("documentId").notNull(),
+    requestedByUserId: int("requestedByUserId"),
+    trigger: mysqlEnum("trigger", ["upload", "manual", "automatic"]).notNull(),
+    status: mysqlEnum("status", ["pendente", "em_processamento", "concluido", "falhou", "ignorado"])
+      .default("pendente")
+      .notNull(),
+    attemptCount: int("attemptCount").default(0).notNull(),
+    maxAttempts: int("maxAttempts").default(3).notNull(),
+    extractedText: text("extractedText"),
+    suggestion: json("suggestion"),
+    confidence: int("confidence"),
+    lastError: text("lastError"),
+    startedAt: timestamp("startedAt"),
+    completedAt: timestamp("completedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    index("documentProcessingJobs_tenant_status_idx").on(table.tenantId, table.status, table.createdAt),
+    index("documentProcessingJobs_tenant_document_idx").on(table.tenantId, table.documentId, table.createdAt),
+  ],
+);
+
 export const folderRules = mysqlTable(
   "folderRules",
   {

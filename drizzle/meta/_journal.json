@@ -50,6 +50,20 @@
       "when": 1786785117760,
       "tag": "0006_real_network",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1786789541065,
+      "tag": "0007_true_jimmy_woo",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1786790378217,
+      "tag": "0008_eminent_rictor",
+      "breakpoints": true
     }
   ]
 }

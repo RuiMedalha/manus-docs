@@ -126,6 +126,7 @@ export const documents = mysqlTable(
       .default("novo")
       .notNull(),
     entityName: varchar("entityName", { length: 255 }),
+    entityId: int("entityId"),
     nif: varchar("nif", { length: 32 }),
     documentNumber: varchar("documentNumber", { length: 100 }),
     documentDate: date("documentDate", { mode: "string" }),
@@ -144,6 +145,79 @@ export const documents = mysqlTable(
     index("documents_tenant_sha_idx").on(table.tenantId, table.sha256),
     index("documents_tenant_number_idx").on(table.tenantId, table.documentNumber),
   ],
+);
+
+export const businessEntities = mysqlTable(
+  "businessEntities",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    tenantId: int("tenantId").notNull(),
+    entityType: mysqlEnum("entityType", ["fornecedor", "cliente", "ambos"]).notNull(),
+    status: mysqlEnum("status", ["proposto", "ativo", "arquivado"]).default("proposto").notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    normalizedName: varchar("normalizedName", { length: 255 }).notNull(),
+    nif: varchar("nif", { length: 32 }),
+    email: varchar("email", { length: 320 }),
+    phone: varchar("phone", { length: 64 }),
+    address: text("address"),
+    externalCrmId: varchar("externalCrmId", { length: 160 }),
+    lastCrmSyncAt: timestamp("lastCrmSyncAt"),
+    createdByUserId: int("createdByUserId").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("businessEntities_tenant_nif_uq").on(table.tenantId, table.nif),
+    index("businessEntities_tenant_name_idx").on(table.tenantId, table.normalizedName),
+    index("businessEntities_tenant_type_idx").on(table.tenantId, table.entityType, table.status),
+  ],
+);
+
+export const financialAccounts = mysqlTable(
+  "financialAccounts",
+  {
+    id: int("id").autoincrement().primaryKey(), tenantId: int("tenantId").notNull(),
+    accountType: mysqlEnum("accountType", ["banco", "despesa", "receita", "iva", "outro"]).notNull(),
+    code: varchar("code", { length: 32 }).notNull(), name: varchar("name", { length: 160 }).notNull(), iban: varchar("iban", { length: 64 }),
+    isActive: boolean("isActive").default(true).notNull(), createdByUserId: int("createdByUserId").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(), updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [uniqueIndex("financialAccounts_tenant_code_uq").on(table.tenantId, table.code), index("financialAccounts_tenant_type_idx").on(table.tenantId, table.accountType, table.isActive)],
+);
+
+export const financialCategories = mysqlTable(
+  "financialCategories",
+  {
+    id: int("id").autoincrement().primaryKey(), tenantId: int("tenantId").notNull(),
+    direction: mysqlEnum("direction", ["despesa", "receita"]).notNull(), code: varchar("code", { length: 32 }).notNull(), name: varchar("name", { length: 160 }).notNull(),
+    accountId: int("accountId"), isActive: boolean("isActive").default(true).notNull(), createdByUserId: int("createdByUserId").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(), updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [uniqueIndex("financialCategories_tenant_code_uq").on(table.tenantId, table.code), index("financialCategories_tenant_direction_idx").on(table.tenantId, table.direction, table.isActive)],
+);
+
+export const crmConnections = mysqlTable(
+  "crmConnections",
+  {
+    id: int("id").autoincrement().primaryKey(), tenantId: int("tenantId").notNull(), provider: varchar("provider", { length: 80 }).notNull(), displayName: varchar("displayName", { length: 120 }).notNull(),
+    baseUrl: varchar("baseUrl", { length: 512 }), contactPath: varchar("contactPath", { length: 255 }).default("/contacts").notNull(),
+    syncMethod: mysqlEnum("syncMethod", ["POST", "PUT", "PATCH"]).default("POST").notNull(), authType: mysqlEnum("authType", ["bearer", "api_key", "basic", "none"]).default("bearer").notNull(),
+    secretEnvKey: varchar("secretEnvKey", { length: 120 }), externalIdPath: varchar("externalIdPath", { length: 120 }).default("id").notNull(),
+    status: mysqlEnum("status", ["nao_configurada", "configurada", "erro", "desligada"]).default("nao_configurada").notNull(),
+    fieldMapping: json("fieldMapping"), lastSyncAt: timestamp("lastSyncAt"), createdByUserId: int("createdByUserId").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(), updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [uniqueIndex("crmConnections_tenant_provider_uq").on(table.tenantId, table.provider)],
+);
+
+export const crmSyncRuns = mysqlTable(
+  "crmSyncRuns",
+  {
+    id: int("id").autoincrement().primaryKey(), tenantId: int("tenantId").notNull(), crmConnectionId: int("crmConnectionId").notNull(), triggeredByUserId: int("triggeredByUserId").notNull(),
+    status: mysqlEnum("status", ["em_curso", "concluida", "parcial", "falhou", "simulada"]).notNull(), totalCount: int("totalCount").default(0).notNull(), succeededCount: int("succeededCount").default(0).notNull(), failedCount: int("failedCount").default(0).notNull(),
+    summary: json("summary"), startedAt: timestamp("startedAt").defaultNow().notNull(), completedAt: timestamp("completedAt"),
+  },
+  table => [index("crmSyncRuns_tenant_connection_idx").on(table.tenantId, table.crmConnectionId, table.startedAt)],
 );
 
 export const ocrProcessingConfigs = mysqlTable(
@@ -278,12 +352,19 @@ export const paymentSchedules = mysqlTable(
     id: int("id").autoincrement().primaryKey(),
     tenantId: int("tenantId").notNull(),
     documentId: int("documentId"),
+    entityId: int("entityId"),
+    debitAccountId: int("debitAccountId"),
+    categoryId: int("categoryId"),
     createdByUserId: int("createdByUserId").notNull(),
     counterparty: varchar("counterparty", { length: 255 }).notNull(),
     dueDate: date("dueDate", { mode: "string" }).notNull(),
     amountCents: bigint("amountCents", { mode: "number" }).notNull(),
     currency: varchar("currency", { length: 3 }).default("EUR").notNull(),
     status: mysqlEnum("status", ["pendente", "pago", "cancelado"]).default("pendente").notNull(),
+    approvalStatus: mysqlEnum("approvalStatus", ["proposta", "aprovada", "rejeitada"]).default("proposta").notNull(),
+    source: mysqlEnum("source", ["manual", "ocr", "crm"]).default("manual").notNull(),
+    approvedByUserId: int("approvedByUserId"),
+    approvedAt: timestamp("approvedAt"),
     paidAt: date("paidAt", { mode: "string" }),
     notes: text("notes"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),

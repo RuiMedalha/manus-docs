@@ -4,6 +4,7 @@ export const documentTypeValues = ["fatura_recebida", "fatura_emitida", "recibo"
 
 export const ocrSuggestionSchema = z.object({
   documentType: z.enum(documentTypeValues),
+  entityRole: z.enum(["fornecedor", "cliente", "desconhecido"]),
   entityName: z.string().max(255).nullable(),
   nif: z.string().max(32).nullable(),
   documentNumber: z.string().max(100).nullable(),
@@ -30,6 +31,7 @@ export const ocrOutputSchema = {
     type: "object",
     properties: {
       documentType: { type: "string", enum: documentTypeValues },
+      entityRole: { type: "string", enum: ["fornecedor", "cliente", "desconhecido"] },
       entityName: { type: ["string", "null"] },
       nif: { type: ["string", "null"] },
       documentNumber: { type: ["string", "null"] },
@@ -42,7 +44,7 @@ export const ocrOutputSchema = {
       confidence: { type: "integer" },
       ocrText: { type: "string" },
     },
-    required: ["documentType", "entityName", "nif", "documentNumber", "documentDate", "dueDate", "totalCents", "vatCents", "currency", "tags", "confidence", "ocrText"],
+    required: ["documentType", "entityRole", "entityName", "nif", "documentNumber", "documentDate", "dueDate", "totalCents", "vatCents", "currency", "tags", "confidence", "ocrText"],
     additionalProperties: false,
   },
 };

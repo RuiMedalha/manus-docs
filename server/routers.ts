@@ -9,6 +9,7 @@ import { reconciliationRouter } from "./routers/reconciliation";
 import { integrationsRouter } from "./routers/integrations";
 import { ocrRouter } from "./routers/ocr";
 import { paymentsRouter } from "./routers/payments";
+import { masterDataRouter } from "./routers/master-data";
 import { tenantRouter } from "./routers/tenant";
 
 export const appRouter = router({
@@ -32,6 +33,7 @@ export const appRouter = router({
   integrations: integrationsRouter,
   ocr: ocrRouter,
   payments: paymentsRouter,
+  masterData: masterDataRouter,
 });
 
 export type AppRouter = typeof appRouter;

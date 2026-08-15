@@ -18,6 +18,9 @@ import OrganizationPage from "./pages/Organization";
 import AuditPage from "./pages/Audit";
 import FoldersPage from "./pages/Folders";
 import PaymentsPage from "./pages/Payments";
+import FinancialSetupPage from "./pages/FinancialSetup";
+import PaymentApprovalsPage from "./pages/PaymentApprovals";
+import CrmStudioPage from "./pages/CrmStudio";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -28,6 +31,9 @@ function Router() {
         <Route path={"/inbox"} component={InboxPage} />
         <Route path={"/pastas"} component={FoldersPage} />
         <Route path={"/pagamentos"} component={PaymentsPage} />
+        <Route path={"/financeiro"} component={FinancialSetupPage} />
+        <Route path={"/aprovacoes"} component={PaymentApprovalsPage} />
+        <Route path={"/crm"} component={CrmStudioPage} />
         <Route path={"/extratos"} component={BankImportPage} />
         <Route path={"/conciliacao"} component={ReconciliationPage} />
         <Route path={"/regras"} component={RulesPage} />

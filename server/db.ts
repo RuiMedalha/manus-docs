@@ -6,8 +6,13 @@ import {
   bankImportTemplates,
   bankImports,
   bankTransactions,
+  businessEntities,
+  crmConnections,
+  crmSyncRuns,
   documentProcessingJobs,
   documents,
+  financialAccounts,
+  financialCategories,
   financialRecords,
   folderRules,
   integrationConnections,
@@ -187,6 +192,119 @@ export async function updateIntegrationConnection(input: typeof integrationConne
   });
   const rows = await db.select().from(integrationConnections).where(and(eq(integrationConnections.tenantId, input.tenantId), eq(integrationConnections.provider, input.provider))).limit(1);
   return rows[0];
+}
+
+function normalizeBusinessName(name: string) {
+  return name.trim().toLocaleLowerCase("pt-PT").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+}
+
+export async function listBusinessEntitiesForTenant(tenantId: number, entityType?: "fornecedor" | "cliente") {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select().from(businessEntities).where(eq(businessEntities.tenantId, tenantId)).orderBy(asc(businessEntities.name));
+  return entityType ? rows.filter(item => item.entityType === entityType || item.entityType === "ambos") : rows;
+}
+
+export async function findOrCreateBusinessEntity(input: { tenantId: number; createdByUserId: number; entityType: "fornecedor" | "cliente"; name: string; nif?: string | null; email?: string | null; status?: "proposto" | "ativo" }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const normalizedName = normalizeBusinessName(input.name);
+  const normalizedNif = input.nif?.replace(/\s+/g, "") || null;
+  const byNif = normalizedNif ? await db.select().from(businessEntities).where(and(eq(businessEntities.tenantId, input.tenantId), eq(businessEntities.nif, normalizedNif))).limit(1) : [];
+  const byName = byNif[0] ? [] : await db.select().from(businessEntities).where(and(eq(businessEntities.tenantId, input.tenantId), eq(businessEntities.normalizedName, normalizedName))).limit(1);
+  const existing = byNif[0] ?? byName[0];
+  if (existing) return existing;
+  const result = await db.insert(businessEntities).values({ tenantId: input.tenantId, createdByUserId: input.createdByUserId, entityType: input.entityType, status: input.status ?? "proposto", name: input.name.trim(), normalizedName, nif: normalizedNif, email: input.email ?? null });
+  const id = Number((result as unknown as { insertId: number }).insertId);
+  const rows = await db.select().from(businessEntities).where(and(eq(businessEntities.tenantId, input.tenantId), eq(businessEntities.id, id))).limit(1);
+  if (!rows[0]) throw new Error("Não foi possível criar a entidade.");
+  return rows[0];
+}
+
+export async function updateBusinessEntityForTenant(tenantId: number, id: number, input: { name?: string; entityType?: "fornecedor" | "cliente" | "ambos"; status?: "proposto" | "ativo" | "arquivado"; nif?: string | null; email?: string | null; phone?: string | null; address?: string | null; externalCrmId?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const values = { ...input, ...(input.name ? { name: input.name.trim(), normalizedName: normalizeBusinessName(input.name) } : {}), ...(input.nif !== undefined ? { nif: input.nif?.replace(/\s+/g, "") || null } : {}) };
+  await db.update(businessEntities).set(values).where(and(eq(businessEntities.tenantId, tenantId), eq(businessEntities.id, id)));
+  const rows = await db.select().from(businessEntities).where(and(eq(businessEntities.tenantId, tenantId), eq(businessEntities.id, id))).limit(1);
+  return rows[0];
+}
+
+export async function listFinancialAccountsForTenant(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(financialAccounts).where(eq(financialAccounts.tenantId, tenantId)).orderBy(asc(financialAccounts.code));
+}
+
+export async function createFinancialAccount(input: typeof financialAccounts.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const result = await db.insert(financialAccounts).values(input);
+  const id = Number((result as unknown as { insertId: number }).insertId);
+  const rows = await db.select().from(financialAccounts).where(and(eq(financialAccounts.tenantId, input.tenantId), eq(financialAccounts.id, id))).limit(1);
+  if (!rows[0]) throw new Error("Não foi possível criar a conta.");
+  return rows[0];
+}
+
+export async function listFinancialCategoriesForTenant(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(financialCategories).where(eq(financialCategories.tenantId, tenantId)).orderBy(asc(financialCategories.code));
+}
+
+export async function createFinancialCategory(input: typeof financialCategories.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const result = await db.insert(financialCategories).values(input);
+  const id = Number((result as unknown as { insertId: number }).insertId);
+  const rows = await db.select().from(financialCategories).where(and(eq(financialCategories.tenantId, input.tenantId), eq(financialCategories.id, id))).limit(1);
+  if (!rows[0]) throw new Error("Não foi possível criar a categoria.");
+  return rows[0];
+}
+
+export async function listCrmConnectionsForTenant(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(crmConnections).where(eq(crmConnections.tenantId, tenantId));
+}
+
+export async function updateCrmConnection(input: typeof crmConnections.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.insert(crmConnections).values(input).onDuplicateKeyUpdate({ set: { displayName: input.displayName, baseUrl: input.baseUrl, contactPath: input.contactPath, syncMethod: input.syncMethod, authType: input.authType, secretEnvKey: input.secretEnvKey, externalIdPath: input.externalIdPath, status: input.status, fieldMapping: input.fieldMapping, lastSyncAt: input.lastSyncAt } });
+  const rows = await db.select().from(crmConnections).where(and(eq(crmConnections.tenantId, input.tenantId), eq(crmConnections.provider, input.provider))).limit(1);
+  return rows[0];
+}
+
+export async function getCrmConnectionForTenant(tenantId: number, id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(crmConnections).where(and(eq(crmConnections.tenantId, tenantId), eq(crmConnections.id, id))).limit(1);
+  return rows[0];
+}
+
+export async function createCrmSyncRun(input: { tenantId: number; crmConnectionId: number; triggeredByUserId: number; status: "em_curso" | "simulada"; totalCount: number; summary?: Record<string, unknown> }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const result = await db.insert(crmSyncRuns).values({ ...input, summary: input.summary ?? null });
+  const id = Number((result as unknown as { insertId: number }).insertId);
+  const rows = await db.select().from(crmSyncRuns).where(and(eq(crmSyncRuns.tenantId, input.tenantId), eq(crmSyncRuns.id, id))).limit(1);
+  if (!rows[0]) throw new Error("Não foi possível registar a sincronização CRM.");
+  return rows[0];
+}
+
+export async function finishCrmSyncRun(tenantId: number, id: number, input: { status: "concluida" | "parcial" | "falhou" | "simulada"; succeededCount: number; failedCount: number; summary: Record<string, unknown> }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.update(crmSyncRuns).set({ ...input, completedAt: new Date() }).where(and(eq(crmSyncRuns.tenantId, tenantId), eq(crmSyncRuns.id, id)));
+  const rows = await db.select().from(crmSyncRuns).where(and(eq(crmSyncRuns.tenantId, tenantId), eq(crmSyncRuns.id, id))).limit(1);
+  return rows[0];
+}
+
+export async function listCrmSyncRunsForTenant(tenantId: number, limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(crmSyncRuns).where(eq(crmSyncRuns.tenantId, tenantId)).orderBy(desc(crmSyncRuns.startedAt)).limit(limit);
 }
 
 export async function listTenantMembers(tenantId: number) {
@@ -537,7 +655,7 @@ export async function createPaymentSchedule(input: typeof paymentSchedules.$infe
   return rows[0];
 }
 
-export async function updatePaymentScheduleForTenant(tenantId: number, id: number, input: { counterparty?: string; dueDate?: string; amountCents?: number; currency?: string; status?: "pendente" | "pago" | "cancelado"; paidAt?: string | null; notes?: string | null }) {
+export async function updatePaymentScheduleForTenant(tenantId: number, id: number, input: { counterparty?: string; entityId?: number | null; debitAccountId?: number | null; categoryId?: number | null; dueDate?: string; amountCents?: number; currency?: string; status?: "pendente" | "pago" | "cancelado"; approvalStatus?: "proposta" | "aprovada" | "rejeitada"; approvedByUserId?: number | null; approvedAt?: Date | null; paidAt?: string | null; notes?: string | null }) {
   const db = await getDb();
   if (!db) throw new Error("A base de dados não está disponível.");
   await db.update(paymentSchedules).set(input).where(and(eq(paymentSchedules.tenantId, tenantId), eq(paymentSchedules.id, id)));
@@ -545,11 +663,11 @@ export async function updatePaymentScheduleForTenant(tenantId: number, id: numbe
   return rows[0];
 }
 
-export async function createOrUpdatePaymentFromDocument(input: { tenantId: number; documentId: number; createdByUserId: number; documentType: "fatura_recebida" | "fatura_emitida" | "recibo" | "comprovativo" | "encomenda" | "outro"; entityName: string | null; dueDate: string | null; totalCents: number | null; currency: string }) {
+export async function createOrUpdatePaymentFromDocument(input: { tenantId: number; documentId: number; createdByUserId: number; documentType: "fatura_recebida" | "fatura_emitida" | "recibo" | "comprovativo" | "encomenda" | "outro"; entityId?: number | null; entityName: string | null; dueDate: string | null; totalCents: number | null; currency: string; source?: "manual" | "ocr" | "crm" }) {
   if (input.documentType !== "fatura_recebida" || !input.dueDate || input.totalCents === null) return undefined;
   const db = await getDb();
   if (!db) throw new Error("A base de dados não está disponível.");
-  await db.insert(paymentSchedules).values({ tenantId: input.tenantId, documentId: input.documentId, createdByUserId: input.createdByUserId, counterparty: input.entityName || "Entidade não identificada", dueDate: input.dueDate, amountCents: input.totalCents, currency: input.currency }).onDuplicateKeyUpdate({ set: { counterparty: input.entityName || "Entidade não identificada", dueDate: input.dueDate, amountCents: input.totalCents, currency: input.currency } });
+  await db.insert(paymentSchedules).values({ tenantId: input.tenantId, documentId: input.documentId, entityId: input.entityId ?? null, createdByUserId: input.createdByUserId, counterparty: input.entityName || "Entidade não identificada", dueDate: input.dueDate, amountCents: input.totalCents, currency: input.currency, approvalStatus: "proposta", source: input.source ?? "manual" }).onDuplicateKeyUpdate({ set: { entityId: input.entityId ?? null, counterparty: input.entityName || "Entidade não identificada", dueDate: input.dueDate, amountCents: input.totalCents, currency: input.currency, source: input.source ?? "manual" } });
   const rows = await db.select().from(paymentSchedules).where(and(eq(paymentSchedules.tenantId, input.tenantId), eq(paymentSchedules.documentId, input.documentId))).limit(1);
   return rows[0];
 }
@@ -620,6 +738,7 @@ export async function updateDocumentForTenant(
     documentType: "fatura_recebida" | "fatura_emitida" | "recibo" | "comprovativo" | "encomenda" | "outro";
     status: "novo" | "processado" | "em_revisao" | "arquivado";
     entityName: string | null;
+    entityId?: number | null;
     nif: string | null;
     documentNumber: string | null;
     documentDate: string | null;

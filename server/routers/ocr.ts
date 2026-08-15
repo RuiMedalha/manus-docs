@@ -5,8 +5,9 @@ import { COOKIE_NAME } from "@shared/const";
 import { createHeartbeatJob, deleteHeartbeatJob } from "../_core/heartbeat";
 import { protectedProcedure, router } from "../_core/trpc";
 import { canPerform } from "../security";
-import { createFinancialRecordFromDocument, enqueueDocumentProcessingJob, getDocumentForTenant, getDocumentProcessingJobForTenant, getOcrProcessingConfigForTenant, getOrCreateTenantContext, listDocumentProcessingJobsForTenant, recordAudit, updateDocumentForTenant, updateOcrProcessingConfig } from "../db";
+import { createFinancialRecordFromDocument, createOrUpdatePaymentFromDocument, enqueueDocumentProcessingJob, findOrCreateBusinessEntity, getDocumentForTenant, getDocumentProcessingJobForTenant, getOcrProcessingConfigForTenant, getOrCreateTenantContext, listDocumentProcessingJobsForTenant, recordAudit, updateDocumentForTenant, updateOcrProcessingConfig } from "../db";
 import { parseOcrSuggestion } from "../ocr-classification";
+import { resolveEntityRole } from "../financial-workflow";
 import { processOcrBatch } from "../ocr-processor";
 
 function requireDocumentWrite(role: Parameters<typeof canPerform>[0]) {
@@ -51,11 +52,14 @@ export const ocrRouter = router({
     const document = await getDocumentForTenant(tenantContext.tenant.id, job.documentId);
     if (!document) throw new TRPCError({ code: "NOT_FOUND", message: "Documento não encontrado." });
     const suggestion = parseOcrSuggestion(job.suggestion);
-    const updated = await updateDocumentForTenant(tenantContext.tenant.id, document.id, { documentType: suggestion.documentType, status: "em_revisao", entityName: suggestion.entityName, nif: suggestion.nif, documentNumber: suggestion.documentNumber, documentDate: suggestion.documentDate, dueDate: suggestion.dueDate, totalCents: suggestion.totalCents, vatCents: suggestion.vatCents, tags: suggestion.tags, finalFolder: document.finalFolder });
+    const inferredRole = resolveEntityRole(suggestion.documentType, suggestion.entityRole);
+    const entity = suggestion.entityName ? await findOrCreateBusinessEntity({ tenantId: tenantContext.tenant.id, createdByUserId: ctx.user.id, entityType: inferredRole, name: suggestion.entityName, nif: suggestion.nif, status: "proposto" }) : undefined;
+    const updated = await updateDocumentForTenant(tenantContext.tenant.id, document.id, { documentType: suggestion.documentType, status: "em_revisao", entityName: suggestion.entityName, entityId: entity?.id ?? null, nif: suggestion.nif, documentNumber: suggestion.documentNumber, documentDate: suggestion.documentDate, dueDate: suggestion.dueDate, totalCents: suggestion.totalCents, vatCents: suggestion.vatCents, tags: suggestion.tags, finalFolder: document.finalFolder });
     if (!updated) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível aplicar a sugestão." });
     await createFinancialRecordFromDocument({ tenantId: tenantContext.tenant.id, documentId: updated.id, documentType: updated.documentType, documentNumber: updated.documentNumber, entityName: updated.entityName, documentDate: updated.documentDate, totalCents: updated.totalCents, currency: suggestion.currency });
-    await recordAudit({ tenantId: tenantContext.tenant.id, actorUserId: ctx.user.id, action: "ocr.suggestion_applied", resourceType: "documentProcessingJob", resourceId: String(job.id), metadata: { documentId: document.id, confidence: job.confidence } });
-    return updated;
+    const payment = await createOrUpdatePaymentFromDocument({ tenantId: tenantContext.tenant.id, documentId: updated.id, createdByUserId: ctx.user.id, documentType: updated.documentType, entityId: entity?.id, entityName: updated.entityName, dueDate: updated.dueDate, totalCents: updated.totalCents, currency: suggestion.currency, source: "ocr" });
+    await recordAudit({ tenantId: tenantContext.tenant.id, actorUserId: ctx.user.id, action: "ocr.suggestion_applied", resourceType: "documentProcessingJob", resourceId: String(job.id), metadata: { documentId: document.id, entityId: entity?.id, paymentProposalId: payment?.id, confidence: job.confidence } });
+    return { document: updated, entity, paymentProposal: payment };
   }),
   enableAutomatic: protectedProcedure.mutation(async ({ ctx }) => {
     if (process.env.NODE_ENV !== "production") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Publique esta versão antes de ativar o processamento automático." });

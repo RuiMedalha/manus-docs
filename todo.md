@@ -36,9 +36,26 @@
 - [x] Criar o modelo multi-tenant de pagamentos com vencimento, valor, estado e ligação opcional ao documento.
 - [x] Criar o calendário de pagamentos com visão mensal, resumo de vencidos e confirmação de pagamento.
 - [x] Validar os fluxos de pastas e pagamentos com testes, interface responsiva e documentação.
-- [ ] Inspecionar o repositório Git indicado e preparar a sincronização segura do projeto.
-- [ ] Adicionar configuração de produção e guia de implantação para domínio próprio e VPS.
+- [x] Inspecionar o repositório Git indicado e preparar a sincronização segura do projeto.
+- [x] Adicionar configuração de produção e guia de implantação para domínio próprio e VPS.
 - [ ] Validar a configuração de implantação e publicar o código no repositório remoto autorizado.
+- [x] Definir o modelo de fornecedores, clientes, contas e categorias financeiras por tenant.
+- [x] Criar fornecedores e clientes a partir de OCR, com deduplicação por NIF e revisão humana.
+- [x] Criar propostas de pagamento a partir de faturas de fornecedores e permitir associar uma conta de débito.
+- [x] Criar plano de contas/categorias para classificar despesas e receitas antes da aprovação.
+- [x] Preparar uma configuração CRM genérica, com mapeamento e sincronização manual de contactos.
+- [x] Criar interfaces de entidades e de aprovação de pagamentos, com testes e documentação.
+- [x] Documentar o fluxo de entidades, categorias, conta de débito e aprovação de pagamentos.
+- [x] Adicionar testes verificáveis ao fluxo de aprovação de pagamentos e revisão de entidades.
+- [x] Adicionar testes de integração de revisão de entidade, aprovação com conta/categoria e bloqueio de liquidação inválida.
+- [x] Definir o contrato CRM universal com API REST, autenticação configurável e mapeamento de campos.
+- [x] Implementar adaptadores CRM agnósticos, validação de ligação e sincronização manual de contactos.
+- [x] Registar por tenant o histórico de sincronizações CRM e os respetivos resultados.
+- [x] Criar interface de pré-visualização, mapeamento e execução manual de sincronizações CRM.
+- [x] Cobrir a integração CRM genérica com testes e documentação de configuração.
+- [x] Validar URL, caminho e autenticação da ligação CRM antes da sincronização real.
+- [x] Cobrir os erros de endpoint e autenticação da validação CRM com testes.
+- [x] Integrar a validação explícita no estúdio CRM e bloquear sincronizações reais não validadas.
 - [x] Definir uma direção visual premium para controlo financeiro e documental.
 - [x] Redesenhar o dashboard com indicadores, prioridades e visualizações operacionais.
 - [x] Consolidar marca, paleta, tipografia, estados e superfícies próprias do DocuFlux no layout.

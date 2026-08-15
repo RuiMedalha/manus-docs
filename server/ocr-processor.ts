@@ -4,7 +4,7 @@ import { ocrOutputSchema, parseOcrSuggestion, type OcrSuggestion } from "./ocr-c
 import { invokeLLM } from "./_core/llm";
 import { storageGetSignedUrl } from "./storage";
 
-const extractionInstruction = `És um extrator de documentos financeiros em português. Lê apenas o ficheiro fornecido e devolve metadados estruturados. Usa null quando um campo não estiver legível. Converte dinheiro para cêntimos inteiros. Usa datas ISO YYYY-MM-DD, moeda ISO de três letras e uma confiança 0-100. O texto OCR deve conter uma transcrição curta dos elementos relevantes, sem inventar conteúdo.`;
+const extractionInstruction = `És um extrator de documentos financeiros em português. Lê apenas o ficheiro fornecido e devolve metadados estruturados. Usa null quando um campo não estiver legível. Converte dinheiro para cêntimos inteiros. Usa datas ISO YYYY-MM-DD, moeda ISO de três letras e uma confiança 0-100. Define entityRole como fornecedor para faturas recebidas, cliente para faturas emitidas e desconhecido apenas quando não existir evidência suficiente. O texto OCR deve conter uma transcrição curta dos elementos relevantes, sem inventar conteúdo.`;
 
 export async function classifyDocument(document: { fileKey: string; contentType: string; originalFilename: string }): Promise<OcrSuggestion> {
   const signedUrl = await storageGetSignedUrl(document.fileKey);

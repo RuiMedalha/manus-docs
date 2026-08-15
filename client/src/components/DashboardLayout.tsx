@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Building2, CalendarDays, FolderKanban, FolderOpen, Handshake, History, Inbox, Landmark, LayoutDashboard, LogOut, PanelLeft, PlugZap, ScanLine, SlidersHorizontal, Users } from "lucide-react";
+import { Building2, CalendarDays, CheckCircle2, FolderKanban, FolderOpen, Handshake, History, Inbox, Landmark, LayoutDashboard, LogOut, PanelLeft, PlugZap, ScanLine, SlidersHorizontal, Users } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -32,6 +32,9 @@ const menuItems = [
   { icon: Inbox, label: "Inbox", path: "/inbox" },
   { icon: FolderOpen, label: "Pastas", path: "/pastas" },
   { icon: CalendarDays, label: "Pagamentos", path: "/pagamentos" },
+  { icon: Building2, label: "Entidades & contas", path: "/financeiro" },
+  { icon: CheckCircle2, label: "Aprovações", path: "/aprovacoes" },
+  { icon: PlugZap, label: "CRM", path: "/crm" },
   { icon: Landmark, label: "Extratos", path: "/extratos" },
   { icon: Handshake, label: "Conciliação", path: "/conciliacao" },
   { icon: FolderKanban, label: "Regras", path: "/regras" },

@@ -4,6 +4,7 @@ import { parse } from "cookie";
 import { z } from "zod";
 import * as db from "../db";
 import { createPasswordReset, createRefreshSession, hashOpaqueToken, LOCAL_REFRESH_COOKIE, registerLocalAccount, resetLocalPassword, verifyLocalPassword } from "../local-auth";
+import { sendPasswordResetWithSes } from "../ses-email";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { sdk } from "../_core/sdk";
 import { publicProcedure, router } from "../_core/trpc";
@@ -49,8 +50,14 @@ export const localAuthRouter = router({
     await db.revokeLocalAuthSession(session.id);
     return issueLocalCookies(ctx, session.user);
   }),
-  requestPasswordReset: publicProcedure.input(z.object({ email: z.string().email() })).mutation(async ({ input }) => {
-    await createPasswordReset(input.email);
+  requestPasswordReset: publicProcedure.input(z.object({ email: z.string().email() })).mutation(async ({ ctx, input }) => {
+    const reset = await createPasswordReset(input.email);
+    if (reset) {
+      const configuredOrigin = process.env.APP_BASE_URL?.replace(/\/$/, "");
+      const requestOrigin = `${ctx.req.protocol ?? "https"}://${ctx.req.get?.("host") ?? ctx.req.headers.host ?? "localhost"}`;
+      const resetUrl = `${configuredOrigin ?? requestOrigin}/acesso?reset=${encodeURIComponent(reset.token)}`;
+      await sendPasswordResetWithSes({ to: input.email, resetUrl });
+    }
     return { success: true };
   }),
   resetPassword: publicProcedure.input(z.object({ token: z.string().min(24), password: z.string().min(1) })).mutation(async ({ input }) => {

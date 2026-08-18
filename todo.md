@@ -94,5 +94,5 @@
 - [ ] Validar os conectores SES e Microsoft 365 em sandbox com credenciais seguras.
 - [ ] Documentar a ativação, os redirecionamentos OAuth e os procedimentos de falha dos conectores.
 - [x] Atualizar o README com as funcionalidades premium, instalação, segurança, operação e integrações do DocuFlux.
-- [ ] Validar a versão atual e criar um commit Git local completo e rastreável.
-- [ ] Sincronizar o commit com RuiMedalha/manus-docs ou registar o bloqueio de escrita do GitHub.
+- [x] Validar a versão atual e criar um commit Git local completo e rastreável.
+- [x] Sincronizar o commit com RuiMedalha/manus-docs ou registar o bloqueio de escrita do GitHub.

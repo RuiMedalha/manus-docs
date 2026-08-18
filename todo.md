@@ -87,7 +87,7 @@
 - [x] Confirmar por teste que uma política criada bloqueia ou permite a aprovação conforme montante, categoria e papel exigido.
 - [x] Cobrir reativação de política e bloqueios por papel, montante e categoria nas integrações financeiras.
 - [x] Criar onboarding de organização com configuração inicial e validação operacional.
-- [ ] Executar testes de regressão, rever a experiência de lançamento e documentar a ativação.
+- [x] Executar testes de regressão, rever a experiência de lançamento e documentar a ativação.
 - [ ] Definir os segredos, permissões e domínios necessários para Amazon SES e Microsoft 365.
 - [ ] Implementar o envio de recuperação de acesso através de Amazon SES, sem expor tokens no cliente.
 - [ ] Preparar a autorização OAuth e o adaptador Microsoft 365 por tenant.

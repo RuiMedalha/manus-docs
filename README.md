@@ -61,7 +61,7 @@ As migrações são mantidas em `drizzle/`. Antes de aplicar uma nova migração
 | `BUILT_IN_FORGE_API_URL` / `BUILT_IN_FORGE_API_KEY` | Armazenamento seguro de documentos no ambiente gerido. | Sim no alojamento gerido |
 | `OAUTH_SERVER_URL` / `VITE_APP_ID` | Compatibilidade com a identidade da plataforma durante a transição. | No ambiente gerido |
 | `SES_REGION`, `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`, `SES_FROM_EMAIL` | Envio transacional de recuperação de acesso através de Amazon SES. | Para ativar email |
-| `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` | Autorização OAuth com Microsoft 365/Dynamics 365, quando aplicável. | Para ativar Microsoft 365 |
+| `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_REDIRECT_URI` | Autorização OAuth com **Microsoft 365/Outlook**. O URI tem de coincidir exatamente com o callback Microsoft Entra. | Para ativar Outlook |
 | `CRM_*` | Segredo definido por cada ligação REST de CRM. | Para sincronização real |
 
 > **Segurança:** nunca coloque valores reais num ficheiro versionado, no mapeamento CRM ou no cliente. Os segredos devem ser adicionados pela gestão segura de ambiente e só são lidos no servidor.
@@ -88,6 +88,10 @@ O processamento pode ser iniciado por documento, por lote de até 20 ficheiros o
 ### CRM genérico
 
 O **Estúdio CRM** aceita qualquer API REST JSON que exponha contactos. Configure URL base, caminho de contactos, método HTTP, autenticação, nome do segredo, mapeamento de campos e caminho do identificador externo. Valide a ligação, faça uma simulação, pré-visualize os payloads e só então execute uma sincronização manual. Cada entidade mostra na Inbox se está sincronizada, pendente ou sem associação CRM.
+
+### Microsoft 365 / Outlook
+
+Um administrador pode abrir a área **Outlook**, iniciar a autorização Microsoft e escolher anexos elegíveis para a Inbox. A importação é sempre manual, suporta PDF, JPG, PNG e DOCX até 10 MB, ignora duplicados por hash e envia os documentos novos para a fila OCR. O callback de produção é `https://gestaodoc-bqys5ev6.manus.space/api/outlook/callback`; em desenvolvimento deve ser usado o domínio HTTPS temporário atual com o mesmo caminho. Os tokens Microsoft são trocados, renovados e cifrados exclusivamente no servidor. O guia completo, incluindo permissões Graph e tratamento de falhas, está em [`MICROSOFT_OUTLOOK_CONNECTOR.md`](MICROSOFT_OUTLOOK_CONNECTOR.md).
 
 ## Onboarding
 
@@ -119,7 +123,8 @@ O serviço expõe `GET /healthz` para monitorização. O procedimento de backup,
 | [`CRM_UNIVERSAL_CONTRACT.md`](CRM_UNIVERSAL_CONTRACT.md) | Contrato REST genérico para CRM. |
 | [`PREMIUM_PRODUCTION_ROADMAP.md`](PREMIUM_PRODUCTION_ROADMAP.md) | Evolução para produção independente. |
 | [`PRODUCTION_RUNBOOK.md`](PRODUCTION_RUNBOOK.md) | Operação, backups e recuperação. |
+| [`MICROSOFT_OUTLOOK_CONNECTOR.md`](MICROSOFT_OUTLOOK_CONNECTOR.md) | Ativação OAuth, permissões Graph, limites, segurança e recuperação Outlook. |
 
 ## Estado de integrações externas
 
-Amazon SES e Microsoft 365 estão preparados como opções de ativação. A ligação efetiva requer domínio/verificação e credenciais SES, além do registo OAuth no Microsoft Entra quando for usado Microsoft 365 ou Dynamics 365. As credenciais são adicionadas apenas após confirmação do fornecedor e nunca são persistidas no repositório.
+Amazon SES e Microsoft 365/Outlook estão preparados como opções de ativação. A ligação efetiva requer domínio/verificação e credenciais SES, além do registo OAuth no Microsoft Entra para Outlook. As credenciais são adicionadas apenas após confirmação do fornecedor e nunca são persistidas no repositório.

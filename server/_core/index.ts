@@ -8,6 +8,7 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { processScheduledOcr } from "../scheduled-ocr";
+import { registerOutlookOAuthRoutes } from "../outlook-oauth";
 import { serveStatic, setupVite } from "./vite";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -45,6 +46,7 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  registerOutlookOAuthRoutes(app);
   app.get("/healthz", (_req, res) => res.status(200).json({ status: "ok", service: "docuflux", timestamp: new Date().toISOString() }));
   app.post("/api/scheduled/process-ocr", processScheduledOcr);
   // tRPC API

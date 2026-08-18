@@ -20,7 +20,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Building2, CalendarDays, CheckCircle2, FolderKanban, FolderOpen, Handshake, History, Inbox, Landmark, LayoutDashboard, LogOut, PanelLeft, PlugZap, Rocket, ScanLine, ShieldCheck, SlidersHorizontal, Users } from "lucide-react";
+import { Building2, CalendarDays, CheckCircle2, FolderKanban, FolderOpen, Handshake, History, Inbox, Landmark, LayoutDashboard, LogOut, Mail, PanelLeft, PlugZap, Rocket, ScanLine, ShieldCheck, SlidersHorizontal, Users } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -36,6 +36,7 @@ const menuItems = [
   { icon: CheckCircle2, label: "Aprovações", path: "/aprovacoes" },
   { icon: ShieldCheck, label: "Políticas", path: "/politicas-aprovacao" },
   { icon: PlugZap, label: "CRM", path: "/crm" },
+  { icon: Mail, label: "Outlook", path: "/outlook" },
   { icon: Landmark, label: "Extratos", path: "/extratos" },
   { icon: Handshake, label: "Conciliação", path: "/conciliacao" },
   { icon: FolderKanban, label: "Regras", path: "/regras" },

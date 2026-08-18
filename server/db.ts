@@ -20,6 +20,8 @@ import {
   localAuthCredentials,
   localAuthSessions,
   ocrProcessingConfigs,
+  outlookConnections,
+  outlookImportRuns,
   paymentApprovalPolicies,
   paymentSchedules,
   reconciliationSuggestions,
@@ -384,6 +386,54 @@ export async function listCrmSyncRunsForTenant(tenantId: number, limit = 20) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(crmSyncRuns).where(eq(crmSyncRuns.tenantId, tenantId)).orderBy(desc(crmSyncRuns.startedAt)).limit(limit);
+}
+
+export async function getOutlookConnectionForTenant(tenantId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(outlookConnections).where(eq(outlookConnections.tenantId, tenantId)).orderBy(desc(outlookConnections.updatedAt)).limit(1);
+  return rows[0];
+}
+
+export async function upsertOutlookConnection(input: typeof outlookConnections.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.insert(outlookConnections).values(input).onDuplicateKeyUpdate({
+    set: {
+      microsoftTenantId: input.microsoftTenantId,
+      graphUserId: input.graphUserId,
+      refreshTokenCiphertext: input.refreshTokenCiphertext,
+      tokenExpiresAt: input.tokenExpiresAt,
+      status: input.status,
+      lastError: input.lastError,
+    },
+  });
+  const rows = await db.select().from(outlookConnections).where(and(eq(outlookConnections.tenantId, input.tenantId), eq(outlookConnections.mailboxAddress, input.mailboxAddress))).limit(1);
+  return rows[0];
+}
+
+export async function updateOutlookConnectionForTenant(tenantId: number, connectionId: number, input: Partial<Pick<typeof outlookConnections.$inferInsert, "status" | "refreshTokenCiphertext" | "tokenExpiresAt" | "lastImportedAt" | "lastError" | "graphUserId" | "microsoftTenantId">>) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.update(outlookConnections).set(input).where(and(eq(outlookConnections.tenantId, tenantId), eq(outlookConnections.id, connectionId)));
+  const rows = await db.select().from(outlookConnections).where(and(eq(outlookConnections.tenantId, tenantId), eq(outlookConnections.id, connectionId))).limit(1);
+  return rows[0];
+}
+
+export async function createOutlookImportRun(input: { tenantId: number; outlookConnectionId: number; triggeredByUserId: number; status: "simulada" | "concluida" | "parcial" | "falhou"; messageCount?: number; attachmentCount?: number; importedDocumentCount?: number; summary?: Record<string, unknown> }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const result = await db.insert(outlookImportRuns).values({ ...input, messageCount: input.messageCount ?? 0, attachmentCount: input.attachmentCount ?? 0, importedDocumentCount: input.importedDocumentCount ?? 0, summary: input.summary ?? null, completedAt: new Date() });
+  const id = Number((result as unknown as { insertId: number }).insertId);
+  const rows = await db.select().from(outlookImportRuns).where(and(eq(outlookImportRuns.tenantId, input.tenantId), eq(outlookImportRuns.id, id))).limit(1);
+  if (!rows[0]) throw new Error("Não foi possível registar a importação Outlook.");
+  return rows[0];
+}
+
+export async function listOutlookImportRunsForTenant(tenantId: number, limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(outlookImportRuns).where(eq(outlookImportRuns.tenantId, tenantId)).orderBy(desc(outlookImportRuns.startedAt)).limit(limit);
 }
 
 export async function listTenantMembers(tenantId: number) {

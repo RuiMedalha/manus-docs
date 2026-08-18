@@ -90,9 +90,15 @@
 - [x] Executar testes de regressão, rever a experiência de lançamento e documentar a ativação.
 - [ ] Definir os segredos, permissões e domínios necessários para Amazon SES e Microsoft 365.
 - [ ] Implementar o envio de recuperação de acesso através de Amazon SES, sem expor tokens no cliente.
-- [ ] Preparar a autorização OAuth e o adaptador Microsoft 365 por tenant.
+- [x] Preparar a autorização OAuth e o adaptador Microsoft 365 por tenant.
 - [ ] Validar os conectores SES e Microsoft 365 em sandbox com credenciais seguras.
-- [ ] Documentar a ativação, os redirecionamentos OAuth e os procedimentos de falha dos conectores.
+- [x] Documentar a ativação, os redirecionamentos OAuth e os procedimentos de falha do conector Microsoft 365.
+- [x] Definir permissões Microsoft Graph e limites de importação de Outlook por tenant.
+- [x] Implementar autorização OAuth Microsoft 365 e armazenamento seguro de ligação por organização.
+- [x] Importar mensagens e anexos elegíveis do Outlook para a Inbox com pré-visualização e auditoria.
+- [x] Atualizar a documentação Outlook com variáveis, callbacks, permissões Graph, fluxo OAuth e procedimentos de recuperação.
+- [x] Alinhar o README com a configuração efetiva do conector Microsoft 365/Outlook.
+- [ ] Cobrir o conector Outlook, a recuperação SES e os respetivos cenários de falha com testes.
 - [x] Atualizar o README com as funcionalidades premium, instalação, segurança, operação e integrações do DocuFlux.
 - [x] Validar a versão atual e criar um commit Git local completo e rastreável.
 - [x] Sincronizar o commit com RuiMedalha/manus-docs ou registar o bloqueio de escrita do GitHub.

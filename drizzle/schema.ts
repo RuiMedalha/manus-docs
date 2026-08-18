@@ -261,6 +261,50 @@ export const crmSyncRuns = mysqlTable(
   table => [index("crmSyncRuns_tenant_connection_idx").on(table.tenantId, table.crmConnectionId, table.startedAt)],
 );
 
+export const outlookConnections = mysqlTable(
+  "outlookConnections",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    tenantId: int("tenantId").notNull(),
+    connectedByUserId: int("connectedByUserId").notNull(),
+    microsoftTenantId: varchar("microsoftTenantId", { length: 96 }),
+    mailboxAddress: varchar("mailboxAddress", { length: 320 }).notNull(),
+    graphUserId: varchar("graphUserId", { length: 160 }),
+    refreshTokenCiphertext: text("refreshTokenCiphertext"),
+    tokenExpiresAt: timestamp("tokenExpiresAt"),
+    status: mysqlEnum("status", ["nao_configurada", "autorizada", "expirada", "erro", "desligada"])
+      .default("nao_configurada")
+      .notNull(),
+    lastImportedAt: timestamp("lastImportedAt"),
+    lastError: text("lastError"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("outlookConnections_tenant_mailbox_uq").on(table.tenantId, table.mailboxAddress),
+    index("outlookConnections_tenant_status_idx").on(table.tenantId, table.status),
+  ],
+);
+
+export const outlookImportRuns = mysqlTable(
+  "outlookImportRuns",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    tenantId: int("tenantId").notNull(),
+    outlookConnectionId: int("outlookConnectionId").notNull(),
+    triggeredByUserId: int("triggeredByUserId").notNull(),
+    status: mysqlEnum("status", ["simulada", "concluida", "parcial", "falhou"])
+      .notNull(),
+    messageCount: int("messageCount").default(0).notNull(),
+    attachmentCount: int("attachmentCount").default(0).notNull(),
+    importedDocumentCount: int("importedDocumentCount").default(0).notNull(),
+    summary: json("summary"),
+    startedAt: timestamp("startedAt").defaultNow().notNull(),
+    completedAt: timestamp("completedAt"),
+  },
+  table => [index("outlookImportRuns_tenant_connection_idx").on(table.tenantId, table.outlookConnectionId, table.startedAt)],
+);
+
 export const ocrProcessingConfigs = mysqlTable(
   "ocrProcessingConfigs",
   {

@@ -24,6 +24,7 @@ import CrmStudioPage from "./pages/CrmStudio";
 import LoginPage from "./pages/Login";
 import ApprovalPoliciesPage from "./pages/ApprovalPolicies";
 import OnboardingPage from "./pages/Onboarding";
+import OutlookPage from "./pages/Outlook";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -40,6 +41,7 @@ function Router() {
         <Route path={"/politicas-aprovacao"} component={ApprovalPoliciesPage} />
         <Route path={"/onboarding"} component={OnboardingPage} />
         <Route path={"/crm"} component={CrmStudioPage} />
+        <Route path={"/outlook"} component={OutlookPage} />
         <Route path={"/extratos"} component={BankImportPage} />
         <Route path={"/conciliacao"} component={ReconciliationPage} />
         <Route path={"/regras"} component={RulesPage} />

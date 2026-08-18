@@ -1,56 +1,125 @@
-# DocuFlux — MVP de Gestão Documental e Financeira
+# DocuFlux
 
-## Visão geral
+> Plataforma multi-tenant para gestão documental, aprovação financeira, conciliação bancária e sincronização controlada de contactos com CRM.
 
-O DocuFlux é um backoffice multi-tenant para centralizar documentos, importações bancárias e conciliação. Cada operação de domínio resolve o membro e o `tenantId` no servidor antes de consultar ou alterar dados, mantendo o isolamento entre organizações.
+O DocuFlux reúne documentos, extratos bancários, pagamentos e contactos de negócio num único backoffice por organização. O produto foi construído para manter uma separação estrita entre tenants: cada consulta, ação, registo de auditoria e relação financeira é limitada ao tenant ativo no servidor.
 
-## Capacidades entregues
+## O que está incluído
 
-| Área | Implementação atual |
+| Área | Capacidades atuais |
 | --- | --- |
-| Organizações | Criação, seleção, membros, convites, papéis e registo de auditoria base. |
-| Documentos | Upload de PDF/JPG/PNG/DOCX para armazenamento de objetos, Inbox, visualização, edição de metadados, regras de pastas e prevenção de duplicados. |
-| OCR e classificação | Fila por tenant com estados, tentativas, extração de PDF/JPG/PNG/DOCX, sugestões estruturadas, revisão humana e auditoria. |
-| Extratos | Assistente CSV de mapeamento, modelos reutilizáveis, normalização e bloqueio de reimportações. |
-| Conciliação | Sugestões por referência, número de ordem e valor/data/texto; revisão e ligação persistente quando aceite. |
-| Integrações | Contratos iniciais para WooCommerce, Ifthenpay e Moloni, sem credenciais nem sincronização ativa. |
+| Organizações e acesso | Organizações, membros, convites, papéis de Admin, Contabilidade, Operador e Aprovador; autenticação local com bcrypt, sessões renováveis e limitação de tentativas. |
+| Documentos | Upload de PDF, JPG, PNG e DOCX para armazenamento de objetos, Inbox, pesquisa, metadados, deduplicação, visualização segura e pastas lógicas. |
+| OCR | Fila multi-tenant com tentativas, processamento manual/automático, classificação estruturada, propostas de metadados e revisão humana. |
+| Entidades | Fornecedores e clientes deduplicados por NIF, confirmados antes de serem usados em pagamentos ou CRM. |
+| Pagamentos | Calendário, propostas criadas a partir de faturas, conta bancária de débito, categorias, aprovação e confirmação de liquidação. |
+| Governação | Políticas editáveis por montante e categoria, papel exigido, suspensão/reativação, remoção auditada e bloqueio de aprovações não autorizadas. |
+| Extratos e conciliação | Assistente CSV, modelos por tenant, normalização, bloqueio de reimportações e sugestões de conciliação com decisões auditadas. |
+| CRM | Adaptador REST agnóstico, mapeamento de campos, simulação, validação de ligação, histórico de sincronizações e estado CRM na Inbox. |
+| Operação | Health check, cabeçalhos de segurança, runbook de produção, PWA responsiva, Docker Compose de desenvolvimento e GitHub Actions. |
 
-## Ambiente local
+## Arquitetura
 
-O projeto usa React, Express, tRPC, Drizzle e MySQL compatível. Depois de configurar `DATABASE_URL` e as variáveis de autenticação da plataforma, execute:
+```text
+React + TypeScript
+        │
+        ├── tRPC (procedimentos autenticados)
+        │       ├── Documentos, OCR, CRM, pagamentos e conciliação
+        │       └── Validação de papéis e tenant ativo
+        │
+Express + Drizzle ─── MySQL compatível
+        │
+        ├── Armazenamento de objetos para binários documentais
+        └── Integrações REST configuráveis por tenant
+```
+
+O binário de um documento nunca é guardado na base de dados; apenas a chave de armazenamento, hash e metadados são persistidos. As pastas da aplicação são **lógicas**: mover um documento altera a sua organização visual, sem criar cópias do ficheiro.
+
+## Arranque local
+
+### Pré-requisitos
+
+É necessário Node.js 22+, pnpm e uma base de dados MySQL compatível. Para dependências locais, o repositório inclui MySQL, Redis e MinIO.
 
 ```bash
 pnpm install
+docker compose -f docker-compose.dev.yml up -d
 pnpm drizzle-kit generate
 pnpm check
 pnpm test
 pnpm dev
 ```
 
-As migrações aplicadas estão em `drizzle/`. Os ficheiros de documentos não ficam na base de dados: apenas a chave, hash e metadados são persistidos; o binário é enviado para armazenamento de objetos.
+As migrações são mantidas em `drizzle/`. Antes de aplicar uma nova migração, gere o SQL, reveja-o e só depois aplique-o na base de dados de destino.
 
-### Variáveis de ambiente
+## Variáveis de ambiente
 
-| Variável | Obrigatória | Finalidade |
+| Variável | Finalidade | Necessária |
 | --- | --- | --- |
-| `DATABASE_URL` | Sim | Ligação MySQL compatível para Drizzle. |
-| `JWT_SECRET` | Sim no ambiente gerido | Assinatura da sessão da plataforma. |
-| `OAUTH_SERVER_URL` | Sim no ambiente gerido | Serviço de autenticação da plataforma. |
-| `VITE_APP_ID` | Sim no ambiente gerido | Identificador da aplicação de autenticação. |
-| `BUILT_IN_FORGE_API_URL` e `BUILT_IN_FORGE_API_KEY` | Sim para upload | URLs assinadas e armazenamento de objetos. |
+| `DATABASE_URL` | Ligação à base de dados MySQL compatível. | Sim |
+| `JWT_SECRET` | Assinatura de sessões e tokens locais. | Sim |
+| `BUILT_IN_FORGE_API_URL` / `BUILT_IN_FORGE_API_KEY` | Armazenamento seguro de documentos no ambiente gerido. | Sim no alojamento gerido |
+| `OAUTH_SERVER_URL` / `VITE_APP_ID` | Compatibilidade com a identidade da plataforma durante a transição. | No ambiente gerido |
+| `SES_REGION`, `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`, `SES_FROM_EMAIL` | Envio transacional de recuperação de acesso através de Amazon SES. | Para ativar email |
+| `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` | Autorização OAuth com Microsoft 365/Dynamics 365, quando aplicável. | Para ativar Microsoft 365 |
+| `CRM_*` | Segredo definido por cada ligação REST de CRM. | Para sincronização real |
 
-Para iniciar dependências locais compatíveis com esta implementação, execute `docker compose -f docker-compose.dev.yml up -d`. O ficheiro inclui MySQL, Redis e MinIO. A escolha de MySQL substitui PostgreSQL na proposta original por compatibilidade com a infraestrutura gerida atual; Redis e MinIO estão preparados para a evolução para filas e armazenamento S3 local.
+> **Segurança:** nunca coloque valores reais num ficheiro versionado, no mapeamento CRM ou no cliente. Os segredos devem ser adicionados pela gestão segura de ambiente e só são lidos no servidor.
 
-## Operação de OCR
+## Fluxos operacionais
 
-Após o upload, cada documento é colocado numa fila da organização. Na Inbox, um utilizador com permissão documental pode usar **Processar pendentes**, processar um documento individualmente ou selecionar até 20 documentos e usar **Processar seleção**. As sugestões resultantes mantêm o documento em revisão e só passam a metadados efetivos depois de **Aplicar sugestão**.
+### Documentos, OCR e pastas
 
-O modo automático usa o mesmo processador e deve ser ativado apenas depois de a versão estar publicada. Depois da publicação, um administrador abre a Inbox e seleciona **Ativar automático**. A aplicação cria um agendamento autenticado que processa pequenos lotes pendentes por organização; o botão também permite desativar o agendamento. Todas as transições relevantes são registadas na auditoria.
+1. Carregue um documento na **Inbox**.
+2. O documento recebe uma pasta sugerida e entra na fila OCR.
+3. Reveja e aplique a proposta de entidade, NIF, valor, IVA, vencimento e metadados.
+4. Confirme ou altere a pasta lógica; o ficheiro mantém a mesma referência segura no armazenamento de objetos.
 
-## Notas de evolução
+O processamento pode ser iniciado por documento, por lote de até 20 ficheiros ou automaticamente através de um agendamento autenticado depois da publicação.
 
-Esta implementação utiliza a autenticação de sessão já disponível no ambiente gerido. Para uma instalação independente, a camada de identidade pode ser substituída por email/password com bcrypt, JWT e refresh tokens, preservando os modelos de membros e tenant. Uma evolução futura poderá substituir o processador gerido por uma fila Redis/BullMQ dedicada para throughput mais elevado, e ativar as sincronizações reais de terceiros.
+### Pagamentos e aprovação
 
-## Repositório, domínio e VPS
+1. Uma fatura de fornecedor com valor e vencimento cria uma **proposta de pagamento**.
+2. Confirme o fornecedor, escolha a conta bancária de débito e a categoria de despesa.
+3. A política de aprovação avalia montante, categoria e papel exigido.
+4. Depois de aprovada, a proposta aparece no calendário como pendente e pode ser marcada como paga.
+5. O movimento importado do banco é conciliado com o registo financeiro correspondente.
 
-O projeto pode continuar no alojamento gerido atual, que permite associar um domínio próprio sem gerir servidores. Para uma instalação numa VPS, consulte [`deploy/README-VPS.md`](deploy/README-VPS.md). A pasta `deploy/` contém uma configuração Docker Compose independente com MySQL e Caddy, mas a autenticação e o armazenamento geridos precisam de ser substituídos por equivalentes externos antes da migração efetiva.
+### CRM genérico
+
+O **Estúdio CRM** aceita qualquer API REST JSON que exponha contactos. Configure URL base, caminho de contactos, método HTTP, autenticação, nome do segredo, mapeamento de campos e caminho do identificador externo. Valide a ligação, faça uma simulação, pré-visualize os payloads e só então execute uma sincronização manual. Cada entidade mostra na Inbox se está sincronizada, pendente ou sem associação CRM.
+
+## Onboarding
+
+A rota **Começar** calcula o progresso com base nos dados reais da organização: conta de débito, categoria, primeiro documento, equipa e preparação CRM. É o percurso recomendado para chegar ao primeiro fluxo completo de documento, aprovação e conciliação.
+
+## Qualidade e testes
+
+```bash
+pnpm check   # TypeScript
+pnpm test    # Vitest
+```
+
+Os testes cobrem regras de pastas, OCR, importação CSV, conciliação, políticas de aprovação, autenticação, CRM e cenários de integração dos routers financeiros.
+
+## Produção, domínio e VPS
+
+O alojamento gerido suporta domínio próprio. Para uma instalação numa VPS, consulte [`deploy/README-VPS.md`](deploy/README-VPS.md), que inclui Docker Compose, Caddy e exemplos de configuração. Antes de migrar, substitua os componentes geridos de identidade e armazenamento por equivalentes externos e valide backups da base de dados e do armazenamento de objetos.
+
+O serviço expõe `GET /healthz` para monitorização. O procedimento de backup, recuperação, retenção e checklist de lançamento está em [`PRODUCTION_RUNBOOK.md`](PRODUCTION_RUNBOOK.md).
+
+## Documentação complementar
+
+| Documento | Conteúdo |
+| --- | --- |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Decisões da arquitetura multi-tenant. |
+| [`OCR_PIPELINE.md`](OCR_PIPELINE.md) | Fila OCR, classificação e revisão humana. |
+| [`FINANCIAL_MASTER_DATA.md`](FINANCIAL_MASTER_DATA.md) | Fornecedores, clientes, contas, categorias e CRM. |
+| [`FINANCIAL_APPROVAL_FLOW.md`](FINANCIAL_APPROVAL_FLOW.md) | Fluxo de proposta, aprovação e liquidação. |
+| [`CRM_UNIVERSAL_CONTRACT.md`](CRM_UNIVERSAL_CONTRACT.md) | Contrato REST genérico para CRM. |
+| [`PREMIUM_PRODUCTION_ROADMAP.md`](PREMIUM_PRODUCTION_ROADMAP.md) | Evolução para produção independente. |
+| [`PRODUCTION_RUNBOOK.md`](PRODUCTION_RUNBOOK.md) | Operação, backups e recuperação. |
+
+## Estado de integrações externas
+
+Amazon SES e Microsoft 365 estão preparados como opções de ativação. A ligação efetiva requer domínio/verificação e credenciais SES, além do registo OAuth no Microsoft Entra quando for usado Microsoft 365 ou Dynamics 365. As credenciais são adicionadas apenas após confirmação do fornecedor e nunca são persistidas no repositório.

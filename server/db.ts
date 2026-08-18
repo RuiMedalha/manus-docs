@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, getTableColumns, like, or } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, isNull, like, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -17,7 +17,10 @@ import {
   folderRules,
   integrationConnections,
   InsertUser,
+  localAuthCredentials,
+  localAuthSessions,
   ocrProcessingConfigs,
+  paymentApprovalPolicies,
   paymentSchedules,
   reconciliationSuggestions,
   reconciliations,
@@ -73,6 +76,81 @@ export async function getUserByOpenId(openId: string) {
   if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
   return result[0];
+}
+
+export async function createLocalUser(input: { openId: string; email: string; name: string; loginMethod: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.insert(users).values({ openId: input.openId, email: input.email, name: input.name, loginMethod: input.loginMethod, tenantId: 0, role: "user", lastSignedIn: new Date() });
+  const rows = await db.select().from(users).where(eq(users.openId, input.openId)).limit(1);
+  if (!rows[0]) throw new Error("Não foi possível criar a conta local.");
+  return rows[0];
+}
+
+export async function getLocalCredentialByEmail(email: string) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const rows = await db.select({ credential: localAuthCredentials, user: users }).from(localAuthCredentials).innerJoin(users, eq(localAuthCredentials.userId, users.id)).where(eq(localAuthCredentials.email, email)).limit(1);
+  return rows[0] ? { ...rows[0].credential, user: rows[0].user } : null;
+}
+
+export async function getLocalCredentialByResetHash(resetTokenHash: string) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const rows = await db.select({ credential: localAuthCredentials, user: users }).from(localAuthCredentials).innerJoin(users, eq(localAuthCredentials.userId, users.id)).where(eq(localAuthCredentials.resetTokenHash, resetTokenHash)).limit(1);
+  return rows[0] ? { ...rows[0].credential, user: rows[0].user } : null;
+}
+
+export async function createLocalCredential(input: { tenantId: number; userId: number; email: string; passwordHash: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.insert(localAuthCredentials).values(input);
+}
+
+export async function updateLocalCredentialSecurity(id: number, input: { failedAttempts: number; lockedUntil: Date | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.update(localAuthCredentials).set(input).where(eq(localAuthCredentials.id, id));
+}
+
+export async function updateLocalCredentialReset(id: number, input: { resetTokenHash: string; resetExpiresAt: Date }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.update(localAuthCredentials).set(input).where(eq(localAuthCredentials.id, id));
+}
+
+export async function updateLocalCredentialPassword(id: number, passwordHash: string) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.update(localAuthCredentials).set({ passwordHash, resetTokenHash: null, resetExpiresAt: null, failedAttempts: 0, lockedUntil: null, lastPasswordChangedAt: new Date() }).where(eq(localAuthCredentials.id, id));
+}
+
+export async function createLocalAuthSession(input: { tenantId: number; userId: number; refreshTokenHash: string; expiresAt: Date }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.insert(localAuthSessions).values(input);
+  const rows = await db.select().from(localAuthSessions).where(eq(localAuthSessions.refreshTokenHash, input.refreshTokenHash)).limit(1);
+  if (!rows[0]) throw new Error("Não foi possível criar a sessão local.");
+  return rows[0];
+}
+
+export async function getLocalAuthSessionByHash(refreshTokenHash: string) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const rows = await db.select({ session: localAuthSessions, user: users }).from(localAuthSessions).innerJoin(users, eq(localAuthSessions.userId, users.id)).where(eq(localAuthSessions.refreshTokenHash, refreshTokenHash)).limit(1);
+  return rows[0] ? { ...rows[0].session, user: rows[0].user } : null;
+}
+
+export async function revokeAllLocalAuthSessions(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.update(localAuthSessions).set({ revokedAt: new Date() }).where(and(eq(localAuthSessions.userId, userId), isNull(localAuthSessions.revokedAt)));
+}
+
+export async function revokeLocalAuthSession(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.update(localAuthSessions).set({ revokedAt: new Date() }).where(eq(localAuthSessions.id, id));
 }
 
 export type TenantContext = {
@@ -653,6 +731,36 @@ export async function listPaymentSchedulesForTenant(tenantId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(paymentSchedules).where(eq(paymentSchedules.tenantId, tenantId)).orderBy(asc(paymentSchedules.dueDate), desc(paymentSchedules.id)).limit(500);
+}
+
+export async function listPaymentApprovalPoliciesForTenant(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(paymentApprovalPolicies).where(eq(paymentApprovalPolicies.tenantId, tenantId)).orderBy(desc(paymentApprovalPolicies.minAmountCents));
+}
+
+export async function createPaymentApprovalPolicy(input: typeof paymentApprovalPolicies.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const result = await db.insert(paymentApprovalPolicies).values(input);
+  const id = Number((result as unknown as { insertId: number }).insertId);
+  const rows = await db.select().from(paymentApprovalPolicies).where(and(eq(paymentApprovalPolicies.tenantId, input.tenantId), eq(paymentApprovalPolicies.id, id))).limit(1);
+  if (!rows[0]) throw new Error("Não foi possível criar a política de aprovação.");
+  return rows[0];
+}
+
+export async function updatePaymentApprovalPolicyForTenant(tenantId: number, id: number, input: { name?: string; minAmountCents?: number; categoryId?: number | null; requiredRole?: "admin" | "contabilidade" | "operador" | "aprovador"; enabled?: boolean }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.update(paymentApprovalPolicies).set(input).where(and(eq(paymentApprovalPolicies.tenantId, tenantId), eq(paymentApprovalPolicies.id, id)));
+  const rows = await db.select().from(paymentApprovalPolicies).where(and(eq(paymentApprovalPolicies.tenantId, tenantId), eq(paymentApprovalPolicies.id, id))).limit(1);
+  return rows[0];
+}
+
+export async function deletePaymentApprovalPolicyForTenant(tenantId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.delete(paymentApprovalPolicies).where(and(eq(paymentApprovalPolicies.tenantId, tenantId), eq(paymentApprovalPolicies.id, id)));
 }
 
 export async function createPaymentSchedule(input: typeof paymentSchedules.$inferInsert) {

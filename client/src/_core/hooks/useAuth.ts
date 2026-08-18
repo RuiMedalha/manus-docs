@@ -21,7 +21,7 @@ export function useAuth(options?: UseAuthOptions) {
     refetchOnWindowFocus: false,
   });
 
-  const logoutMutation = trpc.auth.logout.useMutation({
+  const logoutMutation = trpc.localAuth.logout.useMutation({
     onSuccess: () => {
       utils.auth.me.setData(undefined, null);
     },

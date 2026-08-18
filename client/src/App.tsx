@@ -21,11 +21,15 @@ import PaymentsPage from "./pages/Payments";
 import FinancialSetupPage from "./pages/FinancialSetup";
 import PaymentApprovalsPage from "./pages/PaymentApprovals";
 import CrmStudioPage from "./pages/CrmStudio";
+import LoginPage from "./pages/Login";
+import ApprovalPoliciesPage from "./pages/ApprovalPolicies";
+import OnboardingPage from "./pages/Onboarding";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
+      <Route path={"/login"} component={LoginPage} />
       <DashboardLayout>
         <Route path={"/"} component={Dashboard} />
         <Route path={"/inbox"} component={InboxPage} />
@@ -33,6 +37,8 @@ function Router() {
         <Route path={"/pagamentos"} component={PaymentsPage} />
         <Route path={"/financeiro"} component={FinancialSetupPage} />
         <Route path={"/aprovacoes"} component={PaymentApprovalsPage} />
+        <Route path={"/politicas-aprovacao"} component={ApprovalPoliciesPage} />
+        <Route path={"/onboarding"} component={OnboardingPage} />
         <Route path={"/crm"} component={CrmStudioPage} />
         <Route path={"/extratos"} component={BankImportPage} />
         <Route path={"/conciliacao"} component={ReconciliationPage} />

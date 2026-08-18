@@ -27,6 +27,47 @@ export const users = mysqlTable("users", {
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
+export const localAuthCredentials = mysqlTable(
+  "localAuthCredentials",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    tenantId: int("tenantId").notNull(),
+    userId: int("userId").notNull(),
+    email: varchar("email", { length: 320 }).notNull(),
+    passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
+    resetTokenHash: varchar("resetTokenHash", { length: 64 }),
+    resetExpiresAt: timestamp("resetExpiresAt"),
+    failedAttempts: int("failedAttempts").default(0).notNull(),
+    lockedUntil: timestamp("lockedUntil"),
+    lastPasswordChangedAt: timestamp("lastPasswordChangedAt").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("localAuthCredentials_email_uq").on(table.email),
+    uniqueIndex("localAuthCredentials_user_uq").on(table.userId),
+    index("localAuthCredentials_tenant_idx").on(table.tenantId),
+  ],
+);
+
+export const localAuthSessions = mysqlTable(
+  "localAuthSessions",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    tenantId: int("tenantId").notNull(),
+    userId: int("userId").notNull(),
+    refreshTokenHash: varchar("refreshTokenHash", { length: 64 }).notNull(),
+    expiresAt: timestamp("expiresAt").notNull(),
+    revokedAt: timestamp("revokedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("localAuthSessions_token_uq").on(table.refreshTokenHash),
+    index("localAuthSessions_tenant_user_idx").on(table.tenantId, table.userId),
+  ],
+);
+
 export const tenants = mysqlTable("tenants", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 160 }).notNull(),
@@ -374,6 +415,23 @@ export const paymentSchedules = mysqlTable(
     index("paymentSchedules_tenant_due_idx").on(table.tenantId, table.dueDate, table.status),
     uniqueIndex("paymentSchedules_tenant_document_uq").on(table.tenantId, table.documentId),
   ],
+);
+
+export const paymentApprovalPolicies = mysqlTable(
+  "paymentApprovalPolicies",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    tenantId: int("tenantId").notNull(),
+    name: varchar("name", { length: 120 }).notNull(),
+    minAmountCents: bigint("minAmountCents", { mode: "number" }).default(0).notNull(),
+    categoryId: int("categoryId"),
+    requiredRole: mysqlEnum("requiredRole", ["admin", "contabilidade", "operador", "aprovador"]).default("aprovador").notNull(),
+    enabled: boolean("enabled").default(true).notNull(),
+    createdByUserId: int("createdByUserId").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [index("paymentApprovalPolicies_tenant_amount_idx").on(table.tenantId, table.minAmountCents, table.enabled)],
 );
 
 export const financialRecords = mysqlTable(

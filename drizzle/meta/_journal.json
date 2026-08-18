@@ -64,6 +64,20 @@
       "when": 1786790378217,
       "tag": "0008_eminent_rictor",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1786802069014,
+      "tag": "0009_bouncy_vengeance",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1786802672170,
+      "tag": "0010_violet_archangel",
+      "breakpoints": true
     }
   ]
 }

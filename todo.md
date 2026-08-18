@@ -73,3 +73,26 @@
 - [x] Definir os estados CRM visíveis por documento e expô-los apenas no tenant correto.
 - [x] Apresentar na Inbox um indicador de contacto sincronizado, pendente ou sem associação CRM.
 - [x] Cobrir o estado CRM documental com testes e validação responsiva.
+- [x] Definir requisitos de produção independente, segurança, retenção e operação do MVP premium.
+- [x] Criar e verificar o roteiro de produção independente, segurança, retenção e operação do MVP premium.
+- [ ] Implementar autenticação local por email/password, recuperação de acesso e proteção contra abuso.
+- [x] Implementar registo e acesso local por email/password, bcrypt, bloqueio por tentativas e sessões renováveis.
+- [ ] Ligar o envio transacional de instruções de recuperação após ser escolhido e configurado o fornecedor de email.
+- [x] Adicionar preparação de produção com monitorização, health checks, backups e orientação RGPD.
+- [ ] Preparar um conector CRM autenticado em ambiente sandbox, sem expor segredos.
+- [x] Implementar regras configuráveis de aprovação financeira por montante e categoria.
+- [x] Adicionar edição, ativação/desativação e remoção auditada de políticas de aprovação.
+- [x] Cobrir o ciclo completo de gestão de políticas, incluindo aplicação na aprovação de pagamentos.
+- [x] Adicionar testes de router para criar, editar, suspender/ativar e remover políticas por tenant.
+- [x] Confirmar por teste que uma política criada bloqueia ou permite a aprovação conforme montante, categoria e papel exigido.
+- [x] Cobrir reativação de política e bloqueios por papel, montante e categoria nas integrações financeiras.
+- [x] Criar onboarding de organização com configuração inicial e validação operacional.
+- [ ] Executar testes de regressão, rever a experiência de lançamento e documentar a ativação.
+- [ ] Definir os segredos, permissões e domínios necessários para Amazon SES e Microsoft 365.
+- [ ] Implementar o envio de recuperação de acesso através de Amazon SES, sem expor tokens no cliente.
+- [ ] Preparar a autorização OAuth e o adaptador Microsoft 365 por tenant.
+- [ ] Validar os conectores SES e Microsoft 365 em sandbox com credenciais seguras.
+- [ ] Documentar a ativação, os redirecionamentos OAuth e os procedimentos de falha dos conectores.
+- [x] Atualizar o README com as funcionalidades premium, instalação, segurança, operação e integrações do DocuFlux.
+- [ ] Validar a versão atual e criar um commit Git local completo e rastreável.
+- [ ] Sincronizar o commit com RuiMedalha/manus-docs ou registar o bloqueio de escrita do GitHub.

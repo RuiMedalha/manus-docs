@@ -96,5 +96,5 @@
 - [x] Atualizar o README com as funcionalidades premium, instalação, segurança, operação e integrações do DocuFlux.
 - [x] Validar a versão atual e criar um commit Git local completo e rastreável.
 - [x] Sincronizar o commit com RuiMedalha/manus-docs ou registar o bloqueio de escrita do GitHub.
-- [ ] Corrigir a instalação de pnpm no workflow GitHub Actions.
-- [ ] Validar a pipeline de CI e confirmar o estado da execução no GitHub.
+- [x] Corrigir a instalação de pnpm no workflow GitHub Actions.
+- [x] Validar a pipeline de CI e confirmar o estado da execução no GitHub.

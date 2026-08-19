@@ -11,6 +11,9 @@ export type AtQrDocument = {
 
 export type CaptureStage = "idle" | "file_selected" | "reading_qr" | "qr_found" | "qr_not_found" | "uploading" | "ocr_queued";
 
+type QrRegion = { x: number; y: number; width: number; height: number; scale: number };
+export const qrRotationAngles = [0, 90, 180, 270] as const;
+
 export function captureStageMessage(stage: CaptureStage) {
   const messages: Record<CaptureStage, string> = {
     idle: "Pronto para fotografar ou selecionar um ficheiro.",
@@ -55,21 +58,104 @@ export function documentTypeFromAtCode(code: string | null): "fatura_recebida" |
   return "outro";
 }
 
+export function qrScanRegions(width: number, height: number): QrRegion[] {
+  const lowerHalf = Math.floor(height * 0.45);
+  const halfWidth = Math.floor(width / 2);
+  return [
+    { x: 0, y: 0, width, height, scale: 1 },
+    { x: 0, y: height - lowerHalf, width, height: lowerHalf, scale: 1.8 },
+    { x: 0, y: height - lowerHalf, width: halfWidth, height: lowerHalf, scale: 2.1 },
+    { x: halfWidth, y: height - lowerHalf, width: width - halfWidth, height: lowerHalf, scale: 2.1 },
+  ];
+}
+
+function increaseContrast(image: ImageData) {
+  const adjusted = new Uint8ClampedArray(image.data);
+  for (let index = 0; index < adjusted.length; index += 4) {
+    const luminance = (adjusted[index] * 0.2126 + adjusted[index + 1] * 0.7152 + adjusted[index + 2] * 0.0722 - 128) * 1.7 + 128;
+    const value = Math.max(0, Math.min(255, luminance));
+    adjusted[index] = value;
+    adjusted[index + 1] = value;
+    adjusted[index + 2] = value;
+  }
+  return new ImageData(adjusted, image.width, image.height);
+}
+
+export function decodeAtQr(image: ImageData) {
+  for (const angle of qrRotationAngles) {
+    const rotated = rotateQrImage(image, angle);
+    for (const data of [rotated.data, increaseContrast(rotated).data]) {
+      const code = jsQR(data, rotated.width, rotated.height, { inversionAttempts: "attemptBoth" });
+      if (code) {
+        const parsed = parseAtQrPayload(code.data);
+        if (parsed) return parsed;
+      }
+    }
+  }
+  return null;
+}
+
+export function rotateQrImage(image: ImageData, angle: typeof qrRotationAngles[number]) {
+  if (angle === 0) return image;
+  const rotatedWidth = angle === 180 ? image.width : image.height;
+  const rotatedHeight = angle === 180 ? image.height : image.width;
+  const rotated = new Uint8ClampedArray(rotatedWidth * rotatedHeight * 4);
+  for (let y = 0; y < image.height; y += 1) {
+    for (let x = 0; x < image.width; x += 1) {
+      const sourceIndex = (y * image.width + x) * 4;
+      const targetX = angle === 90 ? image.height - 1 - y : angle === 180 ? image.width - 1 - x : y;
+      const targetY = angle === 90 ? x : angle === 180 ? image.height - 1 - y : image.width - 1 - x;
+      const targetIndex = (targetY * rotatedWidth + targetX) * 4;
+      rotated[targetIndex] = image.data[sourceIndex];
+      rotated[targetIndex + 1] = image.data[sourceIndex + 1];
+      rotated[targetIndex + 2] = image.data[sourceIndex + 2];
+      rotated[targetIndex + 3] = image.data[sourceIndex + 3];
+    }
+  }
+  return new ImageData(rotated, rotatedWidth, rotatedHeight);
+}
+
+async function decodeWithNativeDetector(file: File) {
+  const BarcodeDetector = (globalThis as typeof globalThis & { BarcodeDetector?: new (options: { formats: string[] }) => { detect: (image: ImageBitmap) => Promise<Array<{ rawValue: string }>> } }).BarcodeDetector;
+  if (!BarcodeDetector || typeof createImageBitmap !== "function") return null;
+  const bitmap = await createImageBitmap(file);
+  try {
+    const results = await new BarcodeDetector({ formats: ["qr_code"] }).detect(bitmap);
+    for (const result of results) {
+      const parsed = parseAtQrPayload(result.rawValue);
+      if (parsed) return parsed;
+    }
+  } catch {
+    // O fallback jsQR continua disponível para browsers sem este detetor ou sem suporte QR.
+  } finally {
+    bitmap.close();
+  }
+  return null;
+}
+
 export async function readQrFromImage(file: File): Promise<AtQrDocument | null> {
   if (!file.type.startsWith("image/")) return null;
+  const nativeResult = await decodeWithNativeDetector(file);
+  if (nativeResult) return nativeResult;
   const source = await loadImageForQr(file);
-  const scale = Math.min(1, 1800 / Math.max(source.width, source.height));
-  const width = Math.max(1, Math.round(source.width * scale));
-  const height = Math.max(1, Math.round(source.height * scale));
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext("2d", { willReadFrequently: true });
-  if (!context) return null;
-  context.drawImage(source.drawable, 0, 0, width, height);
-  source.release();
-  const code = jsQR(context.getImageData(0, 0, width, height).data, width, height, { inversionAttempts: "attemptBoth" });
-  return code ? parseAtQrPayload(code.data) : null;
+  try {
+    for (const region of qrScanRegions(source.width, source.height)) {
+      const outputScale = Math.min(region.scale, 2400 / Math.max(region.width, region.height));
+      const width = Math.max(1, Math.round(region.width * outputScale));
+      const height = Math.max(1, Math.round(region.height * outputScale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) continue;
+      context.drawImage(source.drawable, region.x, region.y, region.width, region.height, 0, 0, width, height);
+      const parsed = decodeAtQr(context.getImageData(0, 0, width, height));
+      if (parsed) return parsed;
+    }
+    return null;
+  } finally {
+    source.release();
+  }
 }
 
 export async function loadImageForQr(file: File): Promise<{ drawable: CanvasImageSource; width: number; height: number; release: () => void }> {

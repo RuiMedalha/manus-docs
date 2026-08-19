@@ -39,6 +39,7 @@ export const documentsRouter = router({
       return listDocumentsForTenant(tenantContext.tenant.id, input);
     }),
   get: protectedProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ ctx, input }) => {
+    if (!Number.isSafeInteger(input.id) || input.id <= 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Identificador de documento inválido." });
     const tenantContext = await getOrCreateTenantContext(ctx.user);
     const document = await getDocumentForTenant(tenantContext.tenant.id, input.id);
     if (!document) throw new TRPCError({ code: "NOT_FOUND", message: "Documento não encontrado." });

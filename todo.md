@@ -134,3 +134,7 @@
 - [x] Validar o runbook de fornecedor após a gravação antes de o disponibilizar para testes manuais.
 - [x] Corrigir a consulta de documento com identificador inválido (`NaN`) após a captura móvel.
 - [x] Tornar explícito que o QR AT pré-preenche apenas campos codificados e orientar o utilizador para a sugestão OCR pós-upload de fornecedor, total, IVA e classificação.
+- [x] Reforçar a leitura de QR Code AT em fotografias móveis com tentativas de escala, orientação e melhoria de contraste antes de declarar ausência de QR.
+- [x] Validar e rejeitar identificadores documentais inválidos no servidor, evitando consultas SQL com `NaN` mesmo em clientes desatualizados.
+- [ ] Adicionar varrimento de QR AT por rotação/orientação da fotografia antes de declarar ausência de código.
+- [ ] Cobrir rotação, contraste e regiões de varrimento em testes QR e validar manualmente a fotografia móvel problemática.

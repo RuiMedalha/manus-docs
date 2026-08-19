@@ -132,3 +132,5 @@
 - [x] Documentar o percurso operacional completo de uma fatura de fornecedor, da entrada documental à conciliação bancária, para testes manuais.
 - [x] Criar e guardar efetivamente o runbook de fatura de fornecedor, da captura à conciliação, no repositório.
 - [x] Validar o runbook de fornecedor após a gravação antes de o disponibilizar para testes manuais.
+- [x] Corrigir a consulta de documento com identificador inválido (`NaN`) após a captura móvel.
+- [x] Tornar explícito que o QR AT pré-preenche apenas campos codificados e orientar o utilizador para a sugestão OCR pós-upload de fornecedor, total, IVA e classificação.

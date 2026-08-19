@@ -8,7 +8,7 @@ import { parseOcrSuggestion } from "../ocr-classification";
 import { selectDocumentsWithoutOcrJob } from "../ocr-queue";
 import { resolveEntityRole } from "../financial-workflow";
 import { isValidLogicalFolderPath } from "../operational-rules";
-import { processOcrBatch } from "../ocr-processor";
+import { processOcrBatch, processOcrDocument } from "../ocr-processor";
 
 function requireDocumentWrite(role: Parameters<typeof canPerform>[0]) {
   if (!canPerform(role, "documents:write")) throw new TRPCError({ code: "FORBIDDEN", message: "O seu papel não permite processar documentos." });
@@ -51,6 +51,16 @@ export const ocrRouter = router({
     }
     const results = await processOcrBatch(tenantContext.tenant.id, input.batchSize);
     return { results, queuedDocumentCount: documentsToQueue.length };
+  }),
+  processDocument: protectedProcedure.input(z.object({ documentId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+    const tenantContext = await getOrCreateTenantContext(ctx.user);
+    requireDocumentWrite(tenantContext.membership.role);
+    const document = await getDocumentForTenant(tenantContext.tenant.id, input.documentId);
+    if (!document) throw new TRPCError({ code: "NOT_FOUND", message: "Documento não encontrado." });
+    await enqueueDocumentProcessingJob({ tenantId: tenantContext.tenant.id, documentId: document.id, requestedByUserId: ctx.user.id, trigger: "manual" });
+    const result = await processOcrDocument(tenantContext.tenant.id, document.id);
+    if (result.status === "empty") throw new TRPCError({ code: "CONFLICT", message: "O documento já está a ser analisado ou não existe uma análise pendente." });
+    return result;
   }),
   applySuggestion: protectedProcedure.input(z.object({ jobId: z.number().int().positive(), finalFolder: z.string().min(2).max(512).refine(isValidLogicalFolderPath, "Indique uma pasta absoluta e segura, sem segmentos vazios ou relativos.").optional() })).mutation(async ({ ctx, input }) => {
     const tenantContext = await getOrCreateTenantContext(ctx.user);

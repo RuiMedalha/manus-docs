@@ -7,6 +7,7 @@ import InboxPage from "./Inbox";
 const mocked = vi.hoisted(() => ({
   readQrFromImage: vi.fn(),
   uploadMutate: vi.fn(),
+  processDocument: vi.fn(),
   importSupplierLinks: vi.fn(),
   invalidate: vi.fn(),
 }));
@@ -24,7 +25,7 @@ vi.mock("@/lib/trpc", () => {
       documents: {
         list: { useQuery: () => ({ data: [], isLoading: false }) },
         get: { useQuery: () => ({ data: undefined, isFetching: false }) },
-        upload: { useMutation: (options: { onSuccess?: () => void }) => ({ mutate: (input: unknown) => { mocked.uploadMutate(input); options.onSuccess?.(); }, isPending: false }) },
+        upload: { useMutation: (options: { onSuccess?: (data: { document: { id: number } }) => void }) => ({ mutate: (input: unknown) => { mocked.uploadMutate(input); options.onSuccess?.({ document: { id: 77 } }); }, isPending: false }) },
         updateMetadata: { useMutation: () => mutation() },
         moveFolder: { useMutation: () => mutation() },
       },
@@ -36,6 +37,7 @@ vi.mock("@/lib/trpc", () => {
         applySuggestion: { useMutation: () => mutation() },
         enableAutomatic: { useMutation: () => mutation() },
         disableAutomatic: { useMutation: () => mutation() },
+        processDocument: { useMutation: (options: { onSuccess?: (data: { status: string; job?: { id: number } }) => void }) => ({ mutate: (input: unknown) => { mocked.processDocument(input); options.onSuccess?.({ status: "completed", job: { id: 990 } }); }, isPending: false }) },
       },
       outlook: {
         status: { useQuery: () => ({ data: { connection: { status: "autorizada" } } }) },
@@ -51,6 +53,7 @@ describe("captura QR AT na Inbox", () => {
   beforeEach(() => {
     mocked.readQrFromImage.mockReset();
     mocked.uploadMutate.mockReset();
+    mocked.processDocument.mockReset();
     mocked.importSupplierLinks.mockReset();
   });
   afterEach(cleanup);
@@ -72,6 +75,7 @@ describe("captura QR AT na Inbox", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Guardar na Inbox" }));
     await waitFor(() => expect(mocked.uploadMutate).toHaveBeenCalledWith(expect.objectContaining({ nif: "PT500000000", documentNumber: "FT 2025/123", documentDate: "2025-07-24", documentType: "fatura_recebida" })));
+    expect(mocked.processDocument).toHaveBeenCalledWith({ documentId: 77 });
     expect(screen.getByText("Documento guardado. A análise OCR ficou na fila para revisão.")).toBeTruthy();
   });
 

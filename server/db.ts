@@ -631,6 +631,17 @@ export async function claimNextDocumentProcessingJob(tenantId: number) {
   return claimed?.status === "em_processamento" ? claimed : undefined;
 }
 
+export async function claimDocumentProcessingJob(tenantId: number, documentId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  const candidates = await db.select().from(documentProcessingJobs).where(and(eq(documentProcessingJobs.tenantId, tenantId), eq(documentProcessingJobs.documentId, documentId), eq(documentProcessingJobs.status, "pendente"))).orderBy(desc(documentProcessingJobs.id)).limit(1);
+  const candidate = candidates[0];
+  if (!candidate || !canClaimOcrJob(candidate)) return undefined;
+  await db.update(documentProcessingJobs).set({ status: "em_processamento", attemptCount: candidate.attemptCount + 1, startedAt: new Date(), lastError: null }).where(and(eq(documentProcessingJobs.tenantId, tenantId), eq(documentProcessingJobs.id, candidate.id), eq(documentProcessingJobs.status, "pendente")));
+  const claimed = await getDocumentProcessingJobForTenant(tenantId, candidate.id);
+  return claimed?.status === "em_processamento" ? claimed : undefined;
+}
+
 export async function completeDocumentProcessingJob(tenantId: number, id: number, input: { extractedText: string; suggestion: Record<string, unknown>; confidence: number }) {
   const db = await getDb();
   if (!db) throw new Error("A base de dados não está disponível.");

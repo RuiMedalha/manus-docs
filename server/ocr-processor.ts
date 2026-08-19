@@ -1,4 +1,4 @@
-import { claimNextDocumentProcessingJob, completeDocumentProcessingJob, failDocumentProcessingJob, getDocumentForTenant, recordAudit } from "./db";
+import { claimDocumentProcessingJob, claimNextDocumentProcessingJob, completeDocumentProcessingJob, failDocumentProcessingJob, getDocumentForTenant, recordAudit } from "./db";
 import mammoth from "mammoth";
 import { ocrOutputSchema, parseOcrSuggestion, type OcrSuggestion } from "./ocr-classification";
 import { invokeLLM } from "./_core/llm";
@@ -42,9 +42,7 @@ async function invokeStructuredClassification(filename: string, parts: Array<{ t
   return parseOcrSuggestion(JSON.parse(completionText));
 }
 
-export async function processNextOcrJob(tenantId: number) {
-  const job = await claimNextDocumentProcessingJob(tenantId);
-  if (!job) return { status: "empty" as const };
+async function processClaimedOcrJob(tenantId: number, job: NonNullable<Awaited<ReturnType<typeof claimNextDocumentProcessingJob>>>) {
   try {
     const document = await getDocumentForTenant(tenantId, job.documentId);
     if (!document) throw new Error("O documento já não está disponível nesta organização.");
@@ -58,6 +56,18 @@ export async function processNextOcrJob(tenantId: number) {
     await recordAudit({ tenantId, actorUserId: job.requestedByUserId, action: "ocr.failed", resourceType: "documentProcessingJob", resourceId: String(job.id), metadata: { documentId: job.documentId, message } });
     return { status: "failed" as const, job: failed, message };
   }
+}
+
+export async function processNextOcrJob(tenantId: number) {
+  const job = await claimNextDocumentProcessingJob(tenantId);
+  if (!job) return { status: "empty" as const };
+  return processClaimedOcrJob(tenantId, job);
+}
+
+export async function processOcrDocument(tenantId: number, documentId: number) {
+  const job = await claimDocumentProcessingJob(tenantId, documentId);
+  if (!job) return { status: "empty" as const };
+  return processClaimedOcrJob(tenantId, job);
 }
 
 export async function processOcrBatch(tenantId: number, batchSize: number) {

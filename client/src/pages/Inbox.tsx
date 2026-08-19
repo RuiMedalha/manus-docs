@@ -21,6 +21,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { captureStageMessage, documentTypeFromAtCode, readQrFromImage, type AtQrDocument, type CaptureStage } from "@/lib/at-qr";
 import { applyAtQrToCaptureFields, buildUploadMetadata, captureStageForQrResult, captureStageForSelectedFile } from "@/lib/capture-flow";
+import { validDocumentId } from "@/lib/document-id";
 import {
   Bot,
   CheckCircle2,
@@ -147,17 +148,19 @@ export default function InboxPage() {
   const [editTags, setEditTags] = useState("");
   const [editFolder, setEditFolder] = useState("");
   const utils = trpc.useUtils();
+  const selectedDocumentId = validDocumentId(selectedId);
+  const editingDocumentId = validDocumentId(editId);
   const documents = trpc.documents.list.useQuery({
     status: status === "all" ? undefined : status,
     query: query || undefined,
   });
   const detail = trpc.documents.get.useQuery(
-    { id: selectedId ?? 0 },
-    { enabled: Boolean(selectedId) }
+    { id: selectedDocumentId ?? 1 },
+    { enabled: selectedDocumentId !== null }
   );
   const editDetail = trpc.documents.get.useQuery(
-    { id: editId ?? 0 },
-    { enabled: Boolean(editId) }
+    { id: editingDocumentId ?? 1 },
+    { enabled: editingDocumentId !== null }
   );
   const ocrConfig = trpc.ocr.config.useQuery();
   const ocrJobs = trpc.ocr.jobs.useQuery();
@@ -209,8 +212,8 @@ export default function InboxPage() {
       }
     );
   const upload = trpc.documents.upload.useMutation({
-    onSuccess: () => {
-      toast.success("Documento guardado e colocado na fila OCR.");
+    onSuccess: data => {
+      toast.success("Documento guardado. A analisar fornecedor, total, IVA e classificação…");
       setSelectedFile(null);
       setEntityName("");
       setNif("");
@@ -220,10 +223,28 @@ export default function InboxPage() {
       setDocumentType("outro");
       setAtQr(null);
       setQrScanState("idle");
-      setCaptureStage("ocr_queued");
+      setCaptureStage("uploading");
       invalidateOcr();
+      processUploadedDocument.mutate({ documentId: data.document.id });
     },
     onError: error => toast.error(error.message),
+  });
+  const processUploadedDocument = trpc.ocr.processDocument.useMutation({
+    onSuccess: result => {
+      setCaptureStage("ocr_queued");
+      invalidateOcr();
+      if (result.status === "completed" && result.job) {
+        setReviewJobId(result.job.id);
+        toast.success("Análise pronta. Confirme agora fornecedor, total, IVA e classificação.");
+      } else {
+        toast.error("A análise não ficou concluída. Reveja o estado OCR na Inbox.");
+      }
+    },
+    onError: error => {
+      setCaptureStage("ocr_queued");
+      toast.error(`Documento guardado, mas a análise automática falhou: ${error.message}`);
+      invalidateOcr();
+    },
   });
   const applySuggestion = trpc.ocr.applySuggestion.useMutation({
     onSuccess: () => {
@@ -400,6 +421,16 @@ export default function InboxPage() {
     setMoveDocument({ id: document.id, name: document.originalFilename, folder });
     setManualFolder(folder);
   };
+  const openDocument = (value: unknown) => {
+    const id = validDocumentId(value);
+    if (id === null) return toast.error("Não foi possível abrir o documento: identificador inválido.");
+    setSelectedId(id);
+  };
+  const editDocument = (value: unknown) => {
+    const id = validDocumentId(value);
+    if (id === null) return toast.error("Não foi possível editar o documento: identificador inválido.");
+    setEditId(id);
+  };
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-1 py-3 md:px-5 md:py-6">
@@ -517,7 +548,7 @@ export default function InboxPage() {
             {qrScanState !== "idle" && <div className={`rounded-lg border p-3 text-xs ${qrScanState === "found" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : qrScanState === "reading" ? "border-teal-200 bg-teal-50 text-teal-800" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
               {qrScanState === "reading" && "A procurar QR Code AT na fotografia…"}
               {qrScanState === "not_found" && "Não foi encontrado QR Code AT nesta imagem. Pode continuar: o OCR fará a leitura do documento."}
-              {qrScanState === "found" && <div className="space-y-1"><p className="font-semibold">QR Code AT detetado</p><p>NIF emitente: {atQr?.issuerNif ?? "—"} · Documento: {atQr?.documentNumber ?? "—"}</p><p>Data: {atQr?.documentDate ?? "—"} · ATCUD: {atQr?.atcud ?? "—"}</p></div>}
+              {qrScanState === "found" && <div className="space-y-1"><p className="font-semibold">QR Code AT detetado</p><p>NIF emitente: {atQr?.issuerNif ?? "—"} · Documento: {atQr?.documentNumber ?? "—"}</p><p>Data: {atQr?.documentDate ?? "—"} · ATCUD: {atQr?.atcud ?? "—"}</p><p className="pt-1 font-medium">O QR AT não contém sempre fornecedor, total ou IVA. Toque em Guardar: o DocuFlux analisa já a imagem e abre a revisão OCR com esses campos propostos.</p></div>}
             </div>}
             <div className="space-y-2">
               <Label>Tipo</Label>
@@ -762,7 +793,7 @@ export default function InboxPage() {
                               variant="ghost"
                               size="icon"
                               aria-label={`Editar ${doc.originalFilename}`}
-                              onClick={() => setEditId(doc.id)}
+                              onClick={() => editDocument(doc.id)}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -770,7 +801,7 @@ export default function InboxPage() {
                               variant="ghost"
                               size="icon"
                               aria-label={`Ver ${doc.originalFilename}`}
-                              onClick={() => setSelectedId(doc.id)}
+                              onClick={() => openDocument(doc.id)}
                               disabled={detail.isFetching}
                             >
                               <Eye className="h-4 w-4" />

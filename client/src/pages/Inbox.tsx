@@ -109,6 +109,7 @@ export default function InboxPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
   const [reviewJobId, setReviewJobId] = useState<number | null>(null);
+  const [reviewFolder, setReviewFolder] = useState("");
   const [selectedOcrIds, setSelectedOcrIds] = useState<number[]>([]);
   const [editType, setEditType] = useState<DocumentType>("outro");
   const [editStatus, setEditStatus] = useState<DocumentStatus>("novo");
@@ -260,6 +261,11 @@ export default function InboxPage() {
       editDetail.data.finalFolder ?? editDetail.data.suggestedFolder ?? ""
     );
   }, [editDetail.data]);
+  useEffect(() => {
+    if (!suggestion) return;
+    const proposedFolder = text(suggestion.archiveFolder);
+    setReviewFolder(proposedFolder === "—" ? "" : proposedFolder);
+  }, [reviewJobId, reviewJob?.suggestion]);
   const handleUpload = async () => {
     if (!selectedFile) return toast.error("Selecione um ficheiro primeiro.");
     if (selectedFile.size > 10 * 1024 * 1024)
@@ -720,6 +726,18 @@ export default function InboxPage() {
                 <OcrField label="Total" value={euros(suggestion.totalCents)} />
                 <OcrField label="Data" value={text(suggestion.documentDate)} />
                 <OcrField label="IVA" value={euros(suggestion.vatCents)} />
+                <OcrField label="Natureza" value={accountingNatureLabels[text(suggestion.accountingNature)] ?? text(suggestion.accountingNature)} />
+                <OcrField label="Área de arquivo" value={archiveAreaLabels[text(suggestion.archiveArea)] ?? text(suggestion.archiveArea)} />
+              </div>
+              <div className="rounded-xl border border-teal-100 bg-teal-50/60 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-teal-800">Leitura contabilística assistida</p>
+                <p className="mt-1 text-sm leading-5 text-slate-700">{text(suggestion.accountingSummary)}</p>
+                <p className="mt-2 text-xs leading-5 text-slate-500">{text(suggestion.archiveReason)}</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Pasta proposta</Label>
+                <Input value={reviewFolder} onChange={event => setReviewFolder(event.target.value)} placeholder="/Contabilidade/Compras/2026/08/Fornecedor" />
+                <p className="text-xs text-slate-500">Pode ajustar a pasta antes de aplicar. A decisão final continua a ser sua.</p>
               </div>
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -743,7 +761,7 @@ export default function InboxPage() {
               className="bg-teal-700 hover:bg-teal-800"
               disabled={!reviewJob || !suggestion || applySuggestion.isPending}
               onClick={() =>
-                reviewJob && applySuggestion.mutate({ jobId: reviewJob.id })
+                reviewJob && applySuggestion.mutate({ jobId: reviewJob.id, finalFolder: reviewFolder || undefined })
               }
             >
               {applySuggestion.isPending ? (
@@ -941,3 +959,5 @@ function CrmStatusBadge({ status }: { status?: "synced" | "pending" | "unlinked"
   const classes = { synced: "bg-emerald-50 text-emerald-700", pending: "bg-amber-50 text-amber-800", unlinked: "bg-slate-100 text-slate-500" };
   return <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${classes[state]}`} aria-label={`Estado do contacto: ${labels[state]}`}>{labels[state]}</span>;
 }
+const accountingNatureLabels: Record<string, string> = { despesa: "Despesa", receita: "Receita", imposto: "Imposto", tesouraria: "Tesouraria", suporte_operacional: "Suporte operacional", sem_relevancia_contabilistica: "Sem relevância contabilística", requer_revisao: "Requer revisão" };
+const archiveAreaLabels: Record<string, string> = { contabilidade_compras: "Contabilidade · Compras", contabilidade_vendas: "Contabilidade · Vendas", contabilidade_tesouraria: "Contabilidade · Tesouraria", contabilidade_fiscal: "Contabilidade · Fiscal", operacoes_logistica: "Operações · Logística", operacoes_comercial: "Operações · Comercial", operacoes_administracao: "Operações · Administração", a_rever: "A rever" };

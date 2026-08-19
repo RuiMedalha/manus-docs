@@ -4,7 +4,13 @@ import { ocrOutputSchema, parseOcrSuggestion, type OcrSuggestion } from "./ocr-c
 import { invokeLLM } from "./_core/llm";
 import { storageGetSignedUrl } from "./storage";
 
-const extractionInstruction = `És um extrator de documentos financeiros em português. Lê apenas o ficheiro fornecido e devolve metadados estruturados. Usa null quando um campo não estiver legível. Converte dinheiro para cêntimos inteiros. Usa datas ISO YYYY-MM-DD, moeda ISO de três letras e uma confiança 0-100. Define entityRole como fornecedor para faturas recebidas, cliente para faturas emitidas e desconhecido apenas quando não existir evidência suficiente. O texto OCR deve conter uma transcrição curta dos elementos relevantes, sem inventar conteúdo.`;
+const extractionInstruction = `És um assistente de classificação documental e contabilística em português. Lê apenas o ficheiro fornecido e devolve metadados estruturados; nunca inventes valores, NIF, IVA, totais ou datas. Usa null quando um campo não estiver legível. Converte dinheiro para cêntimos inteiros, datas ISO YYYY-MM-DD e moeda ISO de três letras.
+
+Classifica primeiro o tipo documental: usa fatura_recebida apenas para documentos de compra com fatura, fatura_emitida para vendas faturadas, recibo para recibos, comprovativo para pagamentos ou extratos comprovativos e encomenda para pedidos de compra. Uma nota de envio, guia de transporte, packing list ou documento logístico sem valor faturado deve ficar como outro, nunca como fatura.
+
+Depois avalia accountingNature: despesa, receita, imposto, tesouraria, suporte_operacional, sem_relevancia_contabilistica ou requer_revisao. Para uma nota de envio/guia logística, usa normalmente suporte_operacional e operacoes_logistica; para fatura de fornecedor, despesa e contabilidade_compras; para fatura emitida, receita e contabilidade_vendas; para comprovativos bancários, tesouraria e contabilidade_tesouraria. Se a evidência for insuficiente, usa requer_revisao e a_rever.
+
+accountingSummary explica em uma frase a natureza do documento, sem aconselhamento fiscal. archiveReason explica em uma frase por que a área de arquivo proposta é adequada. requiresAccountingReview deve ser true para documentos contabilísticos, valores incertos ou classificações a rever. entityRole é fornecedor para faturas recebidas, cliente para faturas emitidas e desconhecido quando não há evidência. O texto OCR contém uma transcrição curta dos elementos relevantes.`;
 
 export async function classifyDocument(document: { fileKey: string; contentType: string; originalFilename: string }): Promise<OcrSuggestion> {
   const signedUrl = await storageGetSignedUrl(document.fileKey);

@@ -111,3 +111,5 @@
 - [x] Confirmar e tornar explícita a organização ativa para evitar que faturas de outro tenant pareçam desaparecidas na Inbox.
 - [x] Substituir a mensagem técnica de validação de email no acesso local por uma orientação clara e localizada.
 - [ ] Corrigir links de visualização documental que devolvem Not found no domínio publicado.
+- [x] Classificar documentos por natureza contabilística, tipo documental e nível de confiança durante o OCR.
+- [x] Gerar uma proposta de pasta de arquivo com justificação e permitir aplicá-la ou ajustá-la na revisão da Inbox.

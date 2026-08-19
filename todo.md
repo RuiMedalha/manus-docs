@@ -129,3 +129,6 @@
 - [x] Adicionar na Inbox uma secção para rever links de fornecedor recebidos por email, com remetente, domínio e URL mascarado.
 - [x] Cobrir a revisão de links na Inbox, confirmando que a obtenção só é acionada após seleção explícita do utilizador.
 - [x] Definir o mapeamento e as salvaguardas de uma integração Moloni para fornecedores, clientes, artigos, stock e documentos, sem ativar escrita externa antes dos testes manuais.
+- [x] Documentar o percurso operacional completo de uma fatura de fornecedor, da entrada documental à conciliação bancária, para testes manuais.
+- [x] Criar e guardar efetivamente o runbook de fatura de fornecedor, da captura à conciliação, no repositório.
+- [x] Validar o runbook de fornecedor após a gravação antes de o disponibilizar para testes manuais.

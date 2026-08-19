@@ -64,7 +64,19 @@ function Router() {
 
 function App() {
   useEffect(() => {
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    if (!("serviceWorker" in navigator)) return;
+    let reloadedForUpdate = false;
+    const onControllerChange = () => {
+      if (reloadedForUpdate) return;
+      reloadedForUpdate = true;
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+    navigator.serviceWorker
+      .register("/sw.js", { updateViaCache: "none" })
+      .then(registration => registration.update())
+      .catch(() => undefined);
+    return () => navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
   }, []);
   return (
     <ErrorBoundary>

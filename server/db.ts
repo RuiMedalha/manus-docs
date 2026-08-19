@@ -660,6 +660,7 @@ export async function failDocumentProcessingJob(tenantId: number, id: number, me
 }
 
 export async function getDocumentForTenant(tenantId: number, id: number) {
+  if (!Number.isSafeInteger(tenantId) || tenantId <= 0 || !Number.isSafeInteger(id) || id <= 0) return undefined;
   const db = await getDb();
   if (!db) return undefined;
   const result = await db.select().from(documents).where(and(eq(documents.tenantId, tenantId), eq(documents.id, id))).limit(1);

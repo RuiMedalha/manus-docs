@@ -138,3 +138,6 @@
 - [x] Validar e rejeitar identificadores documentais inválidos no servidor, evitando consultas SQL com `NaN` mesmo em clientes desatualizados.
 - [ ] Adicionar varrimento de QR AT por rotação/orientação da fotografia antes de declarar ausência de código.
 - [ ] Cobrir rotação, contraste e regiões de varrimento em testes QR e validar manualmente a fotografia móvel problemática.
+- [ ] Rastrear e eliminar a consulta `documents.get` com `id = NaN` que ainda surge após a leitura QR na Inbox publicada.
+- [ ] Atualizar a ativação do service worker para forçar a versão corrigida da Inbox em clientes móveis sem manter interface antiga em cache.
+- [x] Normalizar erros internos tRPC para mensagens seguras, sem expor SQL ou parâmetros da base de dados no cliente.

@@ -3,8 +3,17 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
 
+export function clientSafeErrorMessage(code: string, message: string) {
+  return code === "INTERNAL_SERVER_ERROR"
+    ? "Ocorreu um problema ao tratar o pedido. Tente novamente ou contacte o administrador."
+    : message;
+}
+
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
+  errorFormatter({ shape, error }) {
+    return { ...shape, message: clientSafeErrorMessage(error.code, shape.message) };
+  },
 });
 
 export const router = t.router;

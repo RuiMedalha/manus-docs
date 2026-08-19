@@ -20,7 +20,8 @@ import { isValidLogicalFolderPath } from "../operational-rules";
 import { canPerform } from "../security";
 import { validateDocumentUpload } from "../upload-policy";
 import { protectedProcedure, router } from "../_core/trpc";
-import { storageGet, storagePut } from "../storage";
+import { storageGetSignedUrl, storagePut } from "../storage";
+import { getAuthorizedDocumentUrl } from "../document-file-access";
 
 const documentType = z.enum(["fatura_recebida", "fatura_emitida", "recibo", "comprovativo", "encomenda", "outro"]);
 const documentStatus = z.enum(["novo", "processado", "em_revisao", "arquivado"]);
@@ -41,8 +42,8 @@ export const documentsRouter = router({
     const tenantContext = await getOrCreateTenantContext(ctx.user);
     const document = await getDocumentForTenant(tenantContext.tenant.id, input.id);
     if (!document) throw new TRPCError({ code: "NOT_FOUND", message: "Documento não encontrado." });
-    const file = await storageGet(document.fileKey);
-    return { ...document, fileUrl: file.url };
+    const fileUrl = await getAuthorizedDocumentUrl(document.fileKey, storageGetSignedUrl);
+    return { ...document, fileUrl };
   }),
   upload: protectedProcedure
     .input(

@@ -113,3 +113,5 @@
 - [ ] Corrigir links de visualização documental que devolvem Not found no domínio publicado.
 - [x] Classificar documentos por natureza contabilística, tipo documental e nível de confiança durante o OCR.
 - [x] Gerar uma proposta de pasta de arquivo com justificação e permitir aplicá-la ou ajustá-la na revisão da Inbox.
+- [x] Adicionar uma ação simples para escolher ou alterar manualmente a pasta diretamente a partir da Inbox.
+- [x] Permitir consultar o resumo OCR e a classificação do documento na Inbox sem abrir o ficheiro original.

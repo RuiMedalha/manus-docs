@@ -25,6 +25,7 @@ import {
   Eye,
   FileUp,
   Filter,
+  FolderOpen,
   Loader2,
   Pencil,
   Play,
@@ -110,6 +111,8 @@ export default function InboxPage() {
   const [editId, setEditId] = useState<number | null>(null);
   const [reviewJobId, setReviewJobId] = useState<number | null>(null);
   const [reviewFolder, setReviewFolder] = useState("");
+  const [moveDocument, setMoveDocument] = useState<{ id: number; name: string; folder: string } | null>(null);
+  const [manualFolder, setManualFolder] = useState("");
   const [selectedOcrIds, setSelectedOcrIds] = useState<number[]>([]);
   const [editType, setEditType] = useState<DocumentType>("outro");
   const [editStatus, setEditStatus] = useState<DocumentStatus>("novo");
@@ -145,6 +148,7 @@ export default function InboxPage() {
       if (!map.has(job.documentId)) map.set(job.documentId, job);
     return map;
   }, [ocrJobs.data]);
+  const existingFolders = useMemo(() => Array.from(new Set((documents.data ?? []).map(doc => doc.finalFolder || doc.suggestedFolder).filter((folder): folder is string => Boolean(folder)))).sort((a, b) => a.localeCompare(b)), [documents.data]);
   const reviewJob = ocrJobs.data?.find(job => job.id === reviewJobId);
   const suggestion = record(reviewJob?.suggestion);
   const invalidateOcr = () => {
@@ -205,6 +209,15 @@ export default function InboxPage() {
     onSuccess: () => {
       toast.success("Metadados atualizados.");
       setEditId(null);
+      utils.documents.list.invalidate();
+    },
+    onError: error => toast.error(error.message),
+  });
+  const moveFolder = trpc.documents.moveFolder.useMutation({
+    onSuccess: () => {
+      toast.success("Pasta atualizada.");
+      setMoveDocument(null);
+      setManualFolder("");
       utils.documents.list.invalidate();
     },
     onError: error => toast.error(error.message),
@@ -308,6 +321,11 @@ export default function InboxPage() {
       toast.info(
         "Foram selecionados os primeiros 20 documentos, o máximo por ciclo OCR."
       );
+  };
+  const beginManualMove = (document: { id: number; originalFilename: string; finalFolder: string | null; suggestedFolder: string | null }) => {
+    const folder = document.finalFolder || document.suggestedFolder || "/";
+    setMoveDocument({ id: document.id, name: document.originalFilename, folder });
+    setManualFolder(folder);
   };
 
   return (
@@ -605,10 +623,10 @@ export default function InboxPage() {
                                 </Badge>
                                 {job.status === "concluido" && (
                                   <button
-                                    className="block text-xs font-medium text-teal-700 hover:underline"
+                                    className="flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline"
                                     onClick={() => setReviewJobId(job.id)}
                                   >
-                                    Rever sugestão
+                                    <Sparkles className="h-3 w-3" /> Ver resumo OCR
                                   </button>
                                 )}
                                 {job.status === "falhou" && (
@@ -642,6 +660,15 @@ export default function InboxPage() {
                               onClick={() => queueAndProcess([doc.id])}
                             >
                               <Wand2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Escolher pasta manualmente"
+                              aria-label={`Escolher pasta: ${doc.originalFilename}`}
+                              onClick={() => beginManualMove(doc)}
+                            >
+                              <FolderOpen className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -770,6 +797,36 @@ export default function InboxPage() {
                 <CheckCircle2 className="mr-2 h-4 w-4" />
               )}
               Aplicar sugestão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(moveDocument)} onOpenChange={open => !open && setMoveDocument(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Escolher pasta manualmente</DialogTitle>
+            <DialogDescription>{moveDocument?.name}. O ficheiro não é copiado; apenas muda a localização lógica.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {existingFolders.length > 0 && <div className="space-y-2">
+              <Label>Pastas já usadas nesta organização</Label>
+              <div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto rounded-lg border border-slate-100 bg-slate-50 p-2">
+                {existingFolders.slice(0, 12).map(folder => <button key={folder} type="button" onClick={() => setManualFolder(folder)} className="max-w-full truncate rounded-md bg-white px-2 py-1 text-xs text-slate-700 shadow-sm ring-1 ring-slate-200 hover:text-teal-700" title={folder}>{folder}</button>)}
+              </div>
+            </div>}
+            <div className="space-y-2">
+              <Label htmlFor="manual-folder">Caminho da pasta</Label>
+              <Input id="manual-folder" value={manualFolder} onChange={event => setManualFolder(event.target.value)} placeholder="/Operacoes/Logistica/2025/07/Fornecedor" />
+              <p className="text-xs text-slate-500">Escolha uma pasta existente ou escreva uma nova. O caminho deve começar por `/`.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMoveDocument(null)}>Cancelar</Button>
+            <Button className="bg-teal-700 hover:bg-teal-800" disabled={!moveDocument || moveFolder.isPending} onClick={() => {
+              if (!manualFolder.startsWith("/")) return toast.error("A pasta deve começar por /.");
+              if (moveDocument) moveFolder.mutate({ id: moveDocument.id, finalFolder: manualFolder });
+            }}>
+              {moveFolder.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Guardar pasta
             </Button>
           </DialogFooter>
         </DialogContent>

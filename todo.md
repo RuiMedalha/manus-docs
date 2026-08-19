@@ -128,3 +128,4 @@
 - [x] Integrar na Inbox uma revisão de links de fatura recebidos por email, com extração apenas após validação explícita do utilizador.
 - [x] Adicionar na Inbox uma secção para rever links de fornecedor recebidos por email, com remetente, domínio e URL mascarado.
 - [x] Cobrir a revisão de links na Inbox, confirmando que a obtenção só é acionada após seleção explícita do utilizador.
+- [x] Definir o mapeamento e as salvaguardas de uma integração Moloni para fornecedores, clientes, artigos, stock e documentos, sem ativar escrita externa antes dos testes manuais.

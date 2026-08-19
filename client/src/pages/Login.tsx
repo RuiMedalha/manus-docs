@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
+import { friendlyAuthErrorMessage, INVALID_EMAIL_MESSAGE, isValidEmail } from "@/lib/auth-validation";
 import { ArrowLeft, KeyRound, Loader2, LockKeyhole, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
@@ -17,15 +18,17 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const login = trpc.localAuth.login.useMutation({ onSuccess: async () => { await utils.auth.me.invalidate(); setLocation("/"); }, onError: error => toast.error(error.message) });
-  const register = trpc.localAuth.register.useMutation({ onSuccess: async () => { await utils.auth.me.invalidate(); setLocation("/"); }, onError: error => toast.error(error.message) });
-  const recover = trpc.localAuth.requestPasswordReset.useMutation({ onSuccess: () => toast.success("Pedido registado. O envio de instruções será ativado quando o fornecedor de email for configurado."), onError: error => toast.error(error.message) });
+  const login = trpc.localAuth.login.useMutation({ onSuccess: async () => { await utils.auth.me.invalidate(); setLocation("/"); }, onError: error => toast.error(friendlyAuthErrorMessage(error, "Não foi possível iniciar sessão. Confirme os seus dados e tente novamente.")) });
+  const register = trpc.localAuth.register.useMutation({ onSuccess: async () => { await utils.auth.me.invalidate(); setLocation("/"); }, onError: error => toast.error(friendlyAuthErrorMessage(error, "Não foi possível criar a conta. Reveja os dados e tente novamente.")) });
+  const recover = trpc.localAuth.requestPasswordReset.useMutation({ onSuccess: () => toast.success("Pedido registado. O envio de instruções será ativado quando o fornecedor de email for configurado."), onError: error => toast.error(friendlyAuthErrorMessage(error, "Não foi possível pedir a recuperação de acesso.")) });
   const submitting = login.isPending || register.isPending || recover.isPending;
 
   const submit = () => {
-    if (mode === "recover") return recover.mutate({ email });
-    if (mode === "register") return register.mutate({ name, email, password });
-    login.mutate({ email, password });
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) return toast.error(INVALID_EMAIL_MESSAGE);
+    if (mode === "recover") return recover.mutate({ email: normalizedEmail });
+    if (mode === "register") return register.mutate({ name: name.trim(), email: normalizedEmail, password });
+    login.mutate({ email: normalizedEmail, password });
   };
 
   const copy = mode === "login" ? { title: "Bem-vindo de volta", description: "Aceda ao centro de controlo documental e financeiro.", action: "Iniciar sessão" } : mode === "register" ? { title: "Criar organização", description: "Comece uma área de trabalho segura para a sua equipa.", action: "Criar conta" } : { title: "Recuperar acesso", description: "O pedido é tratado de forma segura; o envio de instruções é ativado na configuração de produção.", action: "Pedir recuperação" };

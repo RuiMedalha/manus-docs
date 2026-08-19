@@ -109,3 +109,4 @@
 - [x] Corrigir o OCR que conclui sem sugestões em faturas e apresentar uma causa acionável ao utilizador.
 - [ ] Corrigir a falha `Heartbeat CreateHeartbeatJob failed (401)` ao ativar o processamento OCR automático.
 - [x] Confirmar e tornar explícita a organização ativa para evitar que faturas de outro tenant pareçam desaparecidas na Inbox.
+- [x] Substituir a mensagem técnica de validação de email no acesso local por uma orientação clara e localizada.

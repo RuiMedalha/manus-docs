@@ -7,6 +7,7 @@ import InboxPage from "./Inbox";
 const mocked = vi.hoisted(() => ({
   readQrFromImage: vi.fn(),
   uploadMutate: vi.fn(),
+  importSupplierLinks: vi.fn(),
   invalidate: vi.fn(),
 }));
 
@@ -36,6 +37,11 @@ vi.mock("@/lib/trpc", () => {
         enableAutomatic: { useMutation: () => mutation() },
         disableAutomatic: { useMutation: () => mutation() },
       },
+      outlook: {
+        status: { useQuery: () => ({ data: { connection: { status: "autorizada" } } }) },
+        previewSupplierLinks: { useQuery: () => ({ data: [{ messageId: "mail-1", url: "https://www.moloni.pt/documentos/123?token=secreto", hostname: "www.moloni.pt", provider: "Moloni", subject: "A sua fatura", fromAddress: "faturas@moloni.pt" }], isLoading: false, isFetching: false, isError: false, refetch: mocked.invalidate }) },
+        importSupplierLinks: { useMutation: (options: { onSuccess?: (data: { results: Array<{ status: string }> }) => void }) => ({ mutate: (input: unknown) => { mocked.importSupplierLinks(input); options.onSuccess?.({ results: [{ status: "imported" }] }); }, isPending: false }) },
+      },
       tenant: { context: { useQuery: () => ({ data: { tenant: { name: "Teste" } } }) } },
     },
   };
@@ -45,6 +51,7 @@ describe("captura QR AT na Inbox", () => {
   beforeEach(() => {
     mocked.readQrFromImage.mockReset();
     mocked.uploadMutate.mockReset();
+    mocked.importSupplierLinks.mockReset();
   });
   afterEach(cleanup);
 
@@ -74,5 +81,17 @@ describe("captura QR AT na Inbox", () => {
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(fileInput, { target: { files: [new File(["photo"], "sem-qr.jpg", { type: "image/jpeg" })] } });
     await screen.findByText("Não foi encontrado QR Code AT nesta imagem. Pode continuar: o OCR fará a leitura do documento.");
+  });
+
+  it("só obtém um link de fornecedor quando o utilizador o seleciona e confirma", async () => {
+    render(<InboxPage />);
+    expect(mocked.importSupplierLinks).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Rever links de email" }));
+    await screen.findByText("Moloni · www.moloni.pt");
+    expect(screen.getByText("www.moloni.pt/documentos/123")).toBeTruthy();
+    expect(screen.queryByText(/token=secreto/)).toBeNull();
+    fireEvent.click(screen.getByLabelText("Selecionar link Moloni"));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar obtenção" }));
+    expect(mocked.importSupplierLinks).toHaveBeenCalledWith({ links: [{ messageId: "mail-1", url: "https://www.moloni.pt/documentos/123?token=secreto" }] });
   });
 });

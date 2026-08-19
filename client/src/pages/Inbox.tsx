@@ -28,7 +28,9 @@ import {
   FileUp,
   Filter,
   FolderOpen,
+  Link2,
   Loader2,
+  Mail,
   Pencil,
   Play,
   Search,
@@ -100,6 +102,15 @@ function euros(value: unknown) {
       }).format(value / 100)
     : "—";
 }
+function maskSupplierLink(value: string) {
+  try {
+    const url = new URL(value);
+    const path = url.pathname.length > 36 ? `${url.pathname.slice(0, 33)}…` : url.pathname;
+    return `${url.hostname}${path}`;
+  } catch {
+    return "Link de fornecedor";
+  }
+}
 
 export default function InboxPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -121,6 +132,8 @@ export default function InboxPage() {
   const [moveDocument, setMoveDocument] = useState<{ id: number; name: string; folder: string } | null>(null);
   const [manualFolder, setManualFolder] = useState("");
   const [selectedOcrIds, setSelectedOcrIds] = useState<number[]>([]);
+  const [emailLinkReviewRequested, setEmailLinkReviewRequested] = useState(false);
+  const [selectedEmailLinks, setSelectedEmailLinks] = useState<string[]>([]);
   const [editType, setEditType] = useState<DocumentType>("outro");
   const [editStatus, setEditStatus] = useState<DocumentStatus>("novo");
   const [editEntity, setEditEntity] = useState("");
@@ -149,6 +162,8 @@ export default function InboxPage() {
   const ocrConfig = trpc.ocr.config.useQuery();
   const ocrJobs = trpc.ocr.jobs.useQuery();
   const tenantContext = trpc.tenant.context.useQuery();
+  const outlookStatus = trpc.outlook.status.useQuery();
+  const emailLinks = trpc.outlook.previewSupplierLinks.useQuery(undefined, { enabled: Boolean(outlookStatus.data?.connection) && emailLinkReviewRequested });
   const jobsByDocument = useMemo(() => {
     const map = new Map<number, any>();
     for (const job of ocrJobs.data ?? [])
@@ -158,6 +173,7 @@ export default function InboxPage() {
   const existingFolders = useMemo(() => Array.from(new Set((documents.data ?? []).map(doc => doc.finalFolder || doc.suggestedFolder).filter((folder): folder is string => Boolean(folder)))).sort((a, b) => a.localeCompare(b)), [documents.data]);
   const reviewJob = ocrJobs.data?.find(job => job.id === reviewJobId);
   const suggestion = record(reviewJob?.suggestion);
+  const selectedEmailLinkItems = (emailLinks.data ?? []).filter(link => selectedEmailLinks.includes(`${link.messageId}:${link.url}`)).map(link => ({ messageId: link.messageId, url: link.url }));
   const invalidateOcr = () => {
     utils.ocr.jobs.invalidate();
     utils.documents.list.invalidate();
@@ -245,6 +261,16 @@ export default function InboxPage() {
     onSuccess: () => {
       toast.success("Processamento automático desativado.");
       utils.ocr.config.invalidate();
+    },
+    onError: error => toast.error(error.message),
+  });
+  const importEmailLinks = trpc.outlook.importSupplierLinks.useMutation({
+    onSuccess: data => {
+      const imported = data.results.filter(result => result.status === "imported").length;
+      toast.success(`${imported} documento(s) de link enviados para a Inbox.`);
+      setSelectedEmailLinks([]);
+      emailLinks.refetch();
+      invalidateOcr();
     },
     onError: error => toast.error(error.message),
   });
@@ -448,6 +474,17 @@ export default function InboxPage() {
           </div>
         </CardContent>
       </Card>
+      <Card className="border-amber-200 bg-amber-50/40 shadow-sm">
+        <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex gap-3">
+            <div className="rounded-xl bg-amber-600 p-2.5 text-white"><Mail className="h-5 w-5" /></div>
+            <div><p className="font-medium text-slate-900">Faturas recebidas por email</p><p className="mt-1 max-w-3xl text-sm text-slate-600">Reveja links Moloni e TOConline da caixa Outlook. O DocuFlux mostra remetente e domínio, mas só obtém um ficheiro depois da sua seleção explícita.</p></div>
+          </div>
+          <Button variant="outline" disabled={!outlookStatus.data?.connection || outlookStatus.data.connection.status !== "autorizada" || emailLinks.isFetching} onClick={() => { setEmailLinkReviewRequested(true); emailLinks.refetch(); }}><Link2 className="mr-2 h-4 w-4" />Rever links de email</Button>
+        </CardContent>
+        {!outlookStatus.data?.connection ? <p className="px-5 pb-5 text-xs text-amber-800">Ligue primeiro uma caixa Microsoft 365 na área Outlook para consultar mensagens recebidas.</p> : null}
+      </Card>
+      {emailLinkReviewRequested ? <Card className="border-amber-200 shadow-sm"><CardHeader><CardTitle className="flex items-center gap-2 text-base"><Link2 className="h-5 w-5 text-amber-700" />Links de fornecedor a confirmar</CardTitle></CardHeader><CardContent>{emailLinks.isLoading || emailLinks.isFetching ? <p className="py-5 text-sm text-slate-500">A procurar links de fatura nas mensagens recentes…</p> : emailLinks.isError ? <p className="text-sm text-red-700">{emailLinks.error.message}</p> : (emailLinks.data ?? []).length ? <div className="space-y-3">{emailLinks.data?.map(link => { const key = `${link.messageId}:${link.url}`; return <label key={key} className="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-100 p-3 hover:bg-amber-50"><input type="checkbox" checked={selectedEmailLinks.includes(key)} onChange={() => setSelectedEmailLinks(current => current.includes(key) ? current.filter(item => item !== key) : [...current, key])} aria-label={`Selecionar link ${link.provider}`} className="mt-1 h-4 w-4 accent-amber-600" /><Link2 className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" /><div className="min-w-0 flex-1"><p className="text-sm font-medium text-slate-800">{link.provider} · {link.hostname}</p><p className="mt-1 truncate text-xs text-slate-600">{maskSupplierLink(link.url)}</p><p className="mt-1 truncate text-xs text-slate-500">{link.subject} · {link.fromAddress ?? "Remetente indisponível"}</p></div></label>; })}<div className="flex flex-wrap items-center justify-between gap-3 border-t border-amber-100 pt-4"><p className="text-xs text-slate-600">{selectedEmailLinks.length} link(s) selecionado(s). Links expirados, portais com login ou respostas não documentais não são importados.</p><Button disabled={!selectedEmailLinks.length || importEmailLinks.isPending} onClick={() => importEmailLinks.mutate({ links: selectedEmailLinkItems })}>Confirmar obtenção</Button></div></div> : <p className="py-5 text-sm text-slate-500">Não foram encontrados links Moloni ou TOConline nas mensagens recentes.</p>}</CardContent></Card> : null}
       <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
         <Card className="h-fit border-slate-200 shadow-sm">
           <CardHeader>

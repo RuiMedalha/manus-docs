@@ -2,6 +2,7 @@ import { decryptOutlookToken, encryptOutlookToken } from "./outlook-crypto";
 import { buildAttachmentUrl, buildMessagesUrl, selectEligibleAttachments, type OutlookAttachment } from "./outlook-adapter";
 import { getOutlookEnvironmentConfig } from "./outlook-config";
 import { updateOutlookConnectionForTenant } from "./db";
+import { extractSupplierInvoiceLinks } from "./email-link-security";
 
 export type OutlookAttachmentPreview = {
   messageId: string;
@@ -14,7 +15,17 @@ export type OutlookAttachmentPreview = {
   receivedAt: string | null;
 };
 
-type GraphMessage = { id: string; subject?: string; receivedDateTime?: string; from?: { emailAddress?: { address?: string } } };
+export type OutlookSupplierLinkPreview = {
+  messageId: string;
+  url: string;
+  hostname: string;
+  provider: "Moloni" | "TOConline";
+  subject: string;
+  fromAddress: string | null;
+  receivedAt: string | null;
+};
+
+type GraphMessage = { id: string; subject?: string; bodyPreview?: string; receivedDateTime?: string; from?: { emailAddress?: { address?: string } } };
 type TokenConnection = { id: number; tenantId: number; refreshTokenCiphertext: string | null; microsoftTenantId: string | null };
 
 async function graphJson<T>(accessToken: string, url: string) {
@@ -60,6 +71,17 @@ export async function listOutlookAttachmentPreviews(accessToken: string, top = 2
     }));
   }));
   return attachmentRows.flat();
+}
+
+export async function listOutlookSupplierLinkPreviews(accessToken: string, top = 20): Promise<OutlookSupplierLinkPreview[]> {
+  const messages = await graphJson<{ value?: GraphMessage[] }>(accessToken, buildMessagesUrl(top, false));
+  return (messages.value ?? []).flatMap(message => extractSupplierInvoiceLinks(`${message.subject ?? ""}\n${message.bodyPreview ?? ""}`).map(link => ({
+    messageId: message.id,
+    ...link,
+    subject: message.subject?.trim() || "(sem assunto)",
+    fromAddress: message.from?.emailAddress?.address ?? null,
+    receivedAt: message.receivedDateTime ?? null,
+  })));
 }
 
 export async function downloadOutlookAttachment(accessToken: string, messageId: string, attachmentId: string) {

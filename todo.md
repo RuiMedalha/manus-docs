@@ -124,3 +124,7 @@
 - [x] Testar a página Inbox com QR encontrado, fotografia sem QR e transições visíveis de captura através de mocks controlados.
 - [x] Testar que a mutation `documents.upload` acionada pela Inbox recebe NIF, data e número pré-preenchidos pelo QR AT.
 - [x] Validar no teste de integração da Inbox os estados visíveis de leitura QR e upload/OCR enfileirado.
+- [x] Definir o fluxo seguro para faturas recebidas por email: anexos, links de fornecedores, confirmação humana, deduplicação e auditoria.
+- [x] Integrar na Inbox uma revisão de links de fatura recebidos por email, com extração apenas após validação explícita do utilizador.
+- [x] Adicionar na Inbox uma secção para rever links de fornecedor recebidos por email, com remetente, domínio e URL mascarado.
+- [x] Cobrir a revisão de links na Inbox, confirmando que a obtenção só é acionada após seleção explícita do utilizador.

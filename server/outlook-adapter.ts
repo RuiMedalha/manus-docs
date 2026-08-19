@@ -36,12 +36,12 @@ export function buildMicrosoftAuthorizeUrl(input: {
   return url.toString();
 }
 
-export function buildMessagesUrl(top = 25) {
+export function buildMessagesUrl(top = 25, attachmentsOnly = true) {
   const safeTop = Math.max(1, Math.min(top, 50));
   const url = new URL("https://graph.microsoft.com/v1.0/me/messages");
   url.searchParams.set("$top", String(safeTop));
-  url.searchParams.set("$filter", "hasAttachments eq true");
-  url.searchParams.set("$select", "id,subject,receivedDateTime,from,hasAttachments");
+  if (attachmentsOnly) url.searchParams.set("$filter", "hasAttachments eq true");
+  url.searchParams.set("$select", "id,subject,receivedDateTime,from,hasAttachments,bodyPreview");
   url.searchParams.set("$orderby", "receivedDateTime DESC");
   return url.toString();
 }

@@ -61,8 +61,14 @@ export function documentTypeFromAtCode(code: string | null): "fatura_recebida" |
 export function qrScanRegions(width: number, height: number): QrRegion[] {
   const lowerHalf = Math.floor(height * 0.45);
   const halfWidth = Math.floor(width / 2);
+  const receiptX = Math.floor(width * 0.2);
+  const receiptY = Math.floor(height * 0.22);
+  const receiptWidth = Math.floor(width * 0.6);
+  const receiptHeight = Math.floor(height * 0.52);
   return [
     { x: 0, y: 0, width, height, scale: 1 },
+    { x: receiptX, y: receiptY, width: receiptWidth, height: receiptHeight, scale: 2.6 },
+    { x: receiptX, y: Math.floor(height * 0.34), width: receiptWidth, height: Math.floor(height * 0.34), scale: 3 },
     { x: 0, y: height - lowerHalf, width, height: lowerHalf, scale: 1.8 },
     { x: 0, y: height - lowerHalf, width: halfWidth, height: lowerHalf, scale: 2.1 },
     { x: halfWidth, y: height - lowerHalf, width: width - halfWidth, height: lowerHalf, scale: 2.1 },

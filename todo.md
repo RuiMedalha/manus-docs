@@ -141,3 +141,6 @@
 - [ ] Rastrear e eliminar a consulta `documents.get` com `id = NaN` que ainda surge após a leitura QR na Inbox publicada.
 - [ ] Atualizar a ativação do service worker para forçar a versão corrigida da Inbox em clientes móveis sem manter interface antiga em cache.
 - [x] Normalizar erros internos tRPC para mensagens seguras, sem expor SQL ou parâmetros da base de dados no cliente.
+- [ ] Otimizar a deteção QR para fotografias móveis de alta resolução, com recorte localizado e redimensionamento antes da descodificação.
+- [ ] Garantir que o upload de uma fotografia inicia OCR mesmo sem QR e abre a revisão quando a sugestão estiver concluída.
+- [ ] Validar o recibo BP real com QR Code, fornecedor, total, classificação contabilística e pasta sugerida.

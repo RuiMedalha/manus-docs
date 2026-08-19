@@ -62,11 +62,12 @@ describe("leitura de QR Code AT", () => {
     expect(captureStageMessage("ocr_queued")).toContain("fila");
   });
 
-  it("varre a imagem completa e zonas inferiores ampliadas para QR AT pequeno", () => {
+  it("varre a imagem completa, o centro do recibo e zonas inferiores ampliadas para QR AT pequeno", () => {
     const regions = qrScanRegions(2400, 3200);
-    expect(regions).toHaveLength(4);
+    expect(regions).toHaveLength(6);
     expect(regions[0]).toMatchObject({ x: 0, y: 0, width: 2400, height: 3200, scale: 1 });
     expect(regions.slice(1).every(region => region.y > 0 && region.scale > 1)).toBe(true);
+    expect(regions.some(region => region.x === 480 && region.y === 704 && region.width === 1440 && region.height === 1664 && region.scale === 2.6)).toBe(true);
   });
 
   it("inclui quatro orientações de leitura para fotografias móveis rodadas", () => {

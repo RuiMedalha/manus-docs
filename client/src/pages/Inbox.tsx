@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
+import { captureStageMessage, documentTypeFromAtCode, readQrFromImage, type AtQrDocument, type CaptureStage } from "@/lib/at-qr";
+import { applyAtQrToCaptureFields, buildUploadMetadata, captureStageForQrResult, captureStageForSelectedFile } from "@/lib/capture-flow";
 import {
   Bot,
   CheckCircle2,
@@ -34,7 +36,7 @@ import {
   UploadCloud,
   Wand2,
 } from "lucide-react";
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import React, { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const typeLabels: Record<string, string> = {
@@ -105,8 +107,13 @@ export default function InboxPage() {
   const [status, setStatus] = useState<"all" | DocumentStatus>("all");
   const [documentType, setDocumentType] = useState<DocumentType>("outro");
   const [entityName, setEntityName] = useState("");
+  const [nif, setNif] = useState("");
   const [documentNumber, setDocumentNumber] = useState("");
+  const [documentDate, setDocumentDate] = useState("");
   const [total, setTotal] = useState("");
+  const [atQr, setAtQr] = useState<AtQrDocument | null>(null);
+  const [qrScanState, setQrScanState] = useState<"idle" | "reading" | "found" | "not_found">("idle");
+  const [captureStage, setCaptureStage] = useState<CaptureStage>("idle");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
   const [reviewJobId, setReviewJobId] = useState<number | null>(null);
@@ -190,9 +197,14 @@ export default function InboxPage() {
       toast.success("Documento guardado e colocado na fila OCR.");
       setSelectedFile(null);
       setEntityName("");
+      setNif("");
       setDocumentNumber("");
+      setDocumentDate("");
       setTotal("");
       setDocumentType("outro");
+      setAtQr(null);
+      setQrScanState("idle");
+      setCaptureStage("ocr_queued");
       invalidateOcr();
     },
     onError: error => toast.error(error.message),
@@ -289,15 +301,50 @@ export default function InboxPage() {
       (totalCents === null || !Number.isFinite(totalCents) || totalCents < 0)
     )
       return toast.error("Indique um valor válido.");
+    setCaptureStage("uploading");
+    const captureMetadata = buildUploadMetadata({ documentType, nif, documentNumber, documentDate });
     upload.mutate({
       filename: selectedFile.name,
       contentType: selectedFile.type,
       base64: await toBase64(selectedFile),
-      documentType,
+      documentType: captureMetadata.documentType,
       entityName: entityName || undefined,
-      documentNumber: documentNumber || undefined,
+      nif: captureMetadata.nif,
+      documentNumber: captureMetadata.documentNumber,
+      documentDate: captureMetadata.documentDate,
       totalCents: totalCents ?? undefined,
     });
+  };
+  const handleFileChosen = async (file: File | null) => {
+    setSelectedFile(file);
+    setAtQr(null);
+    if (!file || !file.type.startsWith("image/")) {
+      setQrScanState("idle");
+      setCaptureStage(captureStageForSelectedFile(file));
+      return;
+    }
+    setQrScanState("reading");
+    setCaptureStage("reading_qr");
+    try {
+      const qr = await readQrFromImage(file);
+      if (!qr) {
+        setQrScanState("not_found");
+        setCaptureStage(captureStageForQrResult(null));
+        return;
+      }
+      setAtQr(qr);
+      setQrScanState("found");
+      setCaptureStage(captureStageForQrResult(qr));
+      const populated = applyAtQrToCaptureFields({ documentType, nif, documentNumber, documentDate }, qr);
+      setNif(populated.nif);
+      setDocumentNumber(populated.documentNumber);
+      setDocumentDate(populated.documentDate);
+      setDocumentType(populated.documentType);
+      toast.success("QR Code AT lido. Confirme os dados antes de guardar.");
+    } catch {
+      setQrScanState("not_found");
+      setCaptureStage("qr_not_found");
+    }
   };
   const maxOcrBatch = 20;
   const toggleSelection = (id: number) =>
@@ -415,7 +462,7 @@ export default function InboxPage() {
                 htmlFor="file"
                 className="cursor-pointer text-sm font-medium text-slate-800"
               >
-                {selectedFile ? selectedFile.name : "Escolher ficheiro"}
+                {selectedFile ? selectedFile.name : "Fotografar ou escolher ficheiro"}
               </Label>
               <Input
                 id="file"
@@ -423,15 +470,18 @@ export default function InboxPage() {
                 type="file"
                 accept={accepted}
                 capture="environment"
-                onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                  setSelectedFile(event.target.files?.[0] ?? null)
-                }
+                onChange={(event: ChangeEvent<HTMLInputElement>) => handleFileChosen(event.target.files?.[0] ?? null)}
               />
               <p className="mt-2 text-xs text-slate-500">
-                No telemóvel, pode capturar um documento diretamente com a
-                câmara.
+                No telemóvel, abre a câmara traseira. Um scanner físico também pode guardar o PDF/JPG e escolhê-lo aqui.
               </p>
+              <p className="mt-2 text-xs font-medium text-teal-800">{captureStageMessage(captureStage)}</p>
             </div>
+            {qrScanState !== "idle" && <div className={`rounded-lg border p-3 text-xs ${qrScanState === "found" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : qrScanState === "reading" ? "border-teal-200 bg-teal-50 text-teal-800" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
+              {qrScanState === "reading" && "A procurar QR Code AT na fotografia…"}
+              {qrScanState === "not_found" && "Não foi encontrado QR Code AT nesta imagem. Pode continuar: o OCR fará a leitura do documento."}
+              {qrScanState === "found" && <div className="space-y-1"><p className="font-semibold">QR Code AT detetado</p><p>NIF emitente: {atQr?.issuerNif ?? "—"} · Documento: {atQr?.documentNumber ?? "—"}</p><p>Data: {atQr?.documentDate ?? "—"} · ATCUD: {atQr?.atcud ?? "—"}</p></div>}
+            </div>}
             <div className="space-y-2">
               <Label>Tipo</Label>
               <Select
@@ -477,6 +527,7 @@ export default function InboxPage() {
                 />
               </div>
             </div>
+            {atQr && <div className="space-y-2"><Label>NIF do emitente (QR AT)</Label><Input value={nif} onChange={event => setNif(event.target.value)} placeholder="PT123456789" /><Label>Data do documento (QR AT)</Label><Input type="date" value={documentDate} onChange={event => setDocumentDate(event.target.value)} /></div>}
             <Button
               className="w-full bg-teal-700 hover:bg-teal-800"
               disabled={!selectedFile || upload.isPending}

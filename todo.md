@@ -115,3 +115,12 @@
 - [x] Gerar uma proposta de pasta de arquivo com justificação e permitir aplicá-la ou ajustá-la na revisão da Inbox.
 - [x] Adicionar uma ação simples para escolher ou alterar manualmente a pasta diretamente a partir da Inbox.
 - [x] Permitir consultar o resumo OCR e a classificação do documento na Inbox sem abrir o ficheiro original.
+- [x] Reforçar a captura por câmara e scanner para documentos no telemóvel, com feedback de processamento.
+- [x] Ler QR Code AT em imagens capturadas ou carregadas e pré-preencher dados fiscais verificáveis para revisão humana.
+- [x] Implementar fallback de leitura QR para browsers sem `createImageBitmap` e estados explícitos de seleção, leitura QR, upload e OCR.
+- [x] Cobrir a captura móvel/scan e a leitura QR AT com testes de integração, incluindo fotografia sem QR e fallback de browser.
+- [x] Adicionar testes de integração do fluxo de captura Inbox para QR encontrado, fotografia sem QR e estados de processamento visíveis.
+- [x] Testar o pré-preenchimento QR AT e a submissão de NIF, data e número de documento ao router de documentos.
+- [x] Testar a página Inbox com QR encontrado, fotografia sem QR e transições visíveis de captura através de mocks controlados.
+- [x] Testar que a mutation `documents.upload` acionada pela Inbox recebe NIF, data e número pré-preenchidos pelo QR AT.
+- [x] Validar no teste de integração da Inbox os estados visíveis de leitura QR e upload/OCR enfileirado.

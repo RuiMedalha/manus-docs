@@ -104,3 +104,8 @@
 - [x] Sincronizar o commit com RuiMedalha/manus-docs ou registar o bloqueio de escrita do GitHub.
 - [x] Corrigir a instalação de pnpm no workflow GitHub Actions.
 - [x] Validar a pipeline de CI e confirmar o estado da execução no GitHub.
+- [ ] Preparar a migração do DocuFlux para VPS própria, incluindo serviços externos substitutos para base de dados, armazenamento, autenticação e segredos.
+- [ ] Elaborar um plano de associação de domínio próprio, DNS, TLS, callbacks OAuth e testes de transição para a VPS.
+- [x] Corrigir o OCR que conclui sem sugestões em faturas e apresentar uma causa acionável ao utilizador.
+- [ ] Corrigir a falha `Heartbeat CreateHeartbeatJob failed (401)` ao ativar o processamento OCR automático.
+- [x] Confirmar e tornar explícita a organização ativa para evitar que faturas de outro tenant pareçam desaparecidas na Inbox.

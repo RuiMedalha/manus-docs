@@ -1,12 +1,11 @@
 import { TRPCError } from "@trpc/server";
-import { parse as parseCookie } from "cookie";
 import { z } from "zod";
-import { COOKIE_NAME } from "@shared/const";
 import { createHeartbeatJob, deleteHeartbeatJob } from "../_core/heartbeat";
 import { protectedProcedure, router } from "../_core/trpc";
 import { canPerform } from "../security";
-import { createFinancialRecordFromDocument, createOrUpdatePaymentFromDocument, enqueueDocumentProcessingJob, findOrCreateBusinessEntity, getDocumentForTenant, getDocumentProcessingJobForTenant, getOcrProcessingConfigForTenant, getOrCreateTenantContext, listDocumentProcessingJobsForTenant, recordAudit, updateDocumentForTenant, updateOcrProcessingConfig } from "../db";
+import { createFinancialRecordFromDocument, createOrUpdatePaymentFromDocument, enqueueDocumentProcessingJob, findOrCreateBusinessEntity, getDocumentForTenant, getDocumentProcessingJobForTenant, getOcrProcessingConfigForTenant, getOrCreateTenantContext, listDocumentProcessingJobsForTenant, listDocumentsForTenant, recordAudit, updateDocumentForTenant, updateOcrProcessingConfig } from "../db";
 import { parseOcrSuggestion } from "../ocr-classification";
+import { selectDocumentsWithoutOcrJob } from "../ocr-queue";
 import { resolveEntityRole } from "../financial-workflow";
 import { processOcrBatch } from "../ocr-processor";
 
@@ -41,8 +40,16 @@ export const ocrRouter = router({
   processNow: protectedProcedure.input(z.object({ batchSize: z.number().int().min(1).max(5).default(2) })).mutation(async ({ ctx, input }) => {
     const tenantContext = await getOrCreateTenantContext(ctx.user);
     requireDocumentWrite(tenantContext.membership.role);
+    const [documents, jobs] = await Promise.all([
+      listDocumentsForTenant(tenantContext.tenant.id, { status: "novo" }),
+      listDocumentProcessingJobsForTenant(tenantContext.tenant.id),
+    ]);
+    const documentsToQueue = selectDocumentsWithoutOcrJob(documents, jobs, input.batchSize);
+    for (const document of documentsToQueue) {
+      await enqueueDocumentProcessingJob({ tenantId: tenantContext.tenant.id, documentId: document.id, requestedByUserId: ctx.user.id, trigger: "manual" });
+    }
     const results = await processOcrBatch(tenantContext.tenant.id, input.batchSize);
-    return { results };
+    return { results, queuedDocumentCount: documentsToQueue.length };
   }),
   applySuggestion: protectedProcedure.input(z.object({ jobId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
     const tenantContext = await getOrCreateTenantContext(ctx.user);
@@ -67,9 +74,7 @@ export const ocrRouter = router({
     requireSettings(tenantContext.membership.role);
     const config = await getOcrProcessingConfigForTenant(tenantContext.tenant.id);
     if (config.scheduleCronTaskUid) return updateOcrProcessingConfig(tenantContext.tenant.id, { automaticEnabled: true });
-    const sessionToken = parseCookie(ctx.req.headers.cookie ?? "")[COOKIE_NAME] ?? "";
-    if (!sessionToken) throw new TRPCError({ code: "UNAUTHORIZED" });
-    const job = await createHeartbeatJob({ name: `ocr-${tenantContext.tenant.id}`, cron: "0 */1 * * * *", path: "/api/scheduled/process-ocr", description: `Processamento automático de OCR para ${tenantContext.tenant.name}` }, sessionToken);
+    const job = await createHeartbeatJob({ name: `ocr-${tenantContext.tenant.id}`, cron: "0 */1 * * * *", path: "/api/scheduled/process-ocr", description: `Processamento automático de OCR para ${tenantContext.tenant.name}` }, "");
     const updated = await updateOcrProcessingConfig(tenantContext.tenant.id, { automaticEnabled: true, scheduleCronTaskUid: job.taskUid });
     await recordAudit({ tenantId: tenantContext.tenant.id, actorUserId: ctx.user.id, action: "ocr.automatic_enabled", resourceType: "ocrProcessingConfig", resourceId: String(updated.id) });
     return updated;
@@ -79,8 +84,7 @@ export const ocrRouter = router({
     requireSettings(tenantContext.membership.role);
     const config = await getOcrProcessingConfigForTenant(tenantContext.tenant.id);
     if (config.scheduleCronTaskUid && process.env.NODE_ENV === "production") {
-      const sessionToken = parseCookie(ctx.req.headers.cookie ?? "")[COOKIE_NAME] ?? "";
-      if (sessionToken) await deleteHeartbeatJob(config.scheduleCronTaskUid, sessionToken);
+      await deleteHeartbeatJob(config.scheduleCronTaskUid, "");
     }
     const updated = await updateOcrProcessingConfig(tenantContext.tenant.id, { automaticEnabled: false, scheduleCronTaskUid: null });
     await recordAudit({ tenantId: tenantContext.tenant.id, actorUserId: ctx.user.id, action: "ocr.automatic_disabled", resourceType: "ocrProcessingConfig", resourceId: String(updated.id) });

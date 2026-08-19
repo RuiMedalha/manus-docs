@@ -137,6 +137,7 @@ export default function InboxPage() {
   );
   const ocrConfig = trpc.ocr.config.useQuery();
   const ocrJobs = trpc.ocr.jobs.useQuery();
+  const tenantContext = trpc.tenant.context.useQuery();
   const jobsByDocument = useMemo(() => {
     const map = new Map<number, any>();
     for (const job of ocrJobs.data ?? [])
@@ -152,7 +153,7 @@ export default function InboxPage() {
   const processNow = trpc.ocr.processNow.useMutation({
     onSuccess: result => {
       toast.success("Ciclo OCR terminado.", {
-        description: `${result.results.filter(item => item.status === "completed").length} sugestão(ões) preparada(s).`,
+        description: `${result.queuedDocumentCount} fatura(s) colocada(s) na fila; ${result.results.filter(item => item.status === "completed").length} sugestão(ões) preparada(s).`,
       });
       invalidateOcr();
     },
@@ -316,9 +317,14 @@ export default function InboxPage() {
             metadados após revisão.
           </p>
         </div>
-        <Badge className="w-fit bg-teal-100 text-teal-800 hover:bg-teal-100">
-          PDF, JPG, PNG e DOCX
-        </Badge>
+        <div className="flex flex-wrap gap-2">
+          <Badge className="w-fit bg-teal-100 text-teal-800 hover:bg-teal-100">
+            PDF, JPG, PNG e DOCX
+          </Badge>
+          <Badge variant="secondary" className="w-fit bg-slate-100 text-slate-700">
+            Organização: {tenantContext.data?.tenant.name ?? "a carregar…"}
+          </Badge>
+        </div>
       </header>
       <Card className="border-teal-100 bg-gradient-to-r from-teal-50 to-white shadow-sm">
         <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">

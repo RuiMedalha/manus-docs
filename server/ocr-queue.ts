@@ -13,3 +13,8 @@ export function statusAfterOcrFailure(attemptCount: number, maxAttempts: number)
 export function limitOcrBatch<T>(items: T[]) {
   return items.slice(0, OCR_BATCH_LIMIT);
 }
+
+export function selectDocumentsWithoutOcrJob<T extends { id: number }>(documents: T[], jobs: Array<{ documentId: number }>, limit: number) {
+  const requestedDocumentIds = new Set(jobs.map(job => job.documentId));
+  return documents.filter(document => !requestedDocumentIds.has(document.id)).slice(0, Math.max(1, limit));
+}

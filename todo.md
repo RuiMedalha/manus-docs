@@ -144,3 +144,8 @@
 - [ ] Otimizar a deteção QR para fotografias móveis de alta resolução, com recorte localizado e redimensionamento antes da descodificação.
 - [ ] Garantir que o upload de uma fotografia inicia OCR mesmo sem QR e abre a revisão quando a sugestão estiver concluída.
 - [ ] Validar o recibo BP real com QR Code, fornecedor, total, classificação contabilística e pasta sugerida.
+- [ ] Preparar o deploy do DocuFlux no Coolify, incluindo configuração de aplicação, serviços, segredos, persistência e domínio próprio.
+- [ ] Documentar o plano de transição para Coolify sem interromper a versão atualmente publicada.
+- [x] Criar um guia passo a passo de staging, migração de dados, domínio, validação e corte para Coolify.
+- [x] Criar e guardar efetivamente `COOLIFY_DEPLOYMENT_RUNBOOK.md` no repositório com o roteiro de staging, migração de dados, domínio, validação e corte para Coolify.
+- [x] Validar o conteúdo persistido do guia Coolify antes de o disponibilizar para a transição.

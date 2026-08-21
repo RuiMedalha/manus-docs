@@ -14,4 +14,9 @@ export const ENV = {
   s3AccessKeyId: process.env.S3_ACCESS_KEY_ID ?? "",
   s3SecretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? "",
   s3ForcePathStyle: process.env.S3_FORCE_PATH_STYLE !== "false",
+  geminiApiKey: process.env.GEMINI_API_KEY ?? "",
+  geminiModel: process.env.GEMINI_MODEL ?? "",
+  geminiEnabled: process.env.GEMINI_ENABLED === "true",
+  geminiMaxDocumentBytes: Number(process.env.GEMINI_MAX_DOCUMENT_BYTES ?? 10 * 1024 * 1024),
+  geminiDailyDocumentLimit: Number(process.env.GEMINI_DAILY_DOCUMENT_LIMIT ?? 50),
 };

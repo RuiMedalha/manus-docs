@@ -113,7 +113,11 @@ Configure as variáveis como runtime secrets no Coolify. Variáveis de runtime n
 | `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET` | MinIO/R2/S3 escolhido |
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | Credenciais limitadas ao bucket |
 | `SES_*`, `MICROSOFT_*` | Apenas ao ativar email/Outlook/OneDrive |
-| `GEMINI_*` | Apenas após ativar e validar a análise documental opcional Gemini |
+| `GEMINI_API_KEY` | Segredo runtime-only da conta Google Gemini; nunca usar `VITE_` nem expor ao browser. |
+| `GEMINI_MODEL` | `gemini-3.1-flash-lite` por defeito: modelo multimodal económico; pode ser alterado no Coolify. |
+| `GEMINI_ENABLED` | `false` inicialmente; só definir `true` depois de validar documentos autorizados. |
+| `GEMINI_MAX_DOCUMENT_BYTES` | `10485760` (10 MB), alinhado com o limite documental. |
+| `GEMINI_DAILY_DOCUMENT_LIMIT` | Limite inicial de documentos por tenant/dia, por exemplo `50`. |
 
 Nunca copie segredos internos da publicação atual para a VPS.
 

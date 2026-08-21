@@ -38,7 +38,7 @@ No ambiente Coolify, o DocuFlux usa uma chave Google própria em `GEMINI_API_KEY
 
 | Decisão | Primeira fase recomendada |
 | --- | --- |
-| Modelo | Modelo Gemini Flash multimodal disponível na conta Google, escolhido por configuração e não fixado no cliente. |
+| Modelo | `gemini-3.1-flash-lite` por defeito. É um modelo multimodal estável e económico; o administrador pode substituí-lo por `GEMINI_MODEL` sem alterar código.[3] [4] |
 | Entrada | PDF/imagem obtida pelo servidor a partir do MinIO; preferir envio inline para documentos de até 10 MB. |
 | Resposta | JSON Schema estrito, validado no servidor antes de ser persistido. |
 | Acionamento | Manual em documentos com revisão pendente, depois opcionalmente por regra de baixa confiança. |
@@ -79,3 +79,5 @@ No ambiente Coolify, o DocuFlux usa uma chave Google própria em `GEMINI_API_KEY
 
 [1]: https://ai.google.dev/gemini-api/docs/document-processing "Google Gemini API — Document understanding"
 [2]: https://ai.google.dev/gemini-api/docs/structured-output "Google Gemini API — Structured outputs"
+[3]: https://ai.google.dev/gemini-api/docs/models "Google Gemini API — Models"
+[4]: https://ai.google.dev/gemini-api/docs/pricing "Google Gemini API — Pricing"

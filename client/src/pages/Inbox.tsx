@@ -22,6 +22,7 @@ import { trpc } from "@/lib/trpc";
 import { captureStageMessage, documentTypeFromAtCode, readQrFromImage, type AtQrDocument, type CaptureStage } from "@/lib/at-qr";
 import { applyAtQrToCaptureFields, buildUploadMetadata, captureStageForQrResult, captureStageForSelectedFile } from "@/lib/capture-flow";
 import { validDocumentId } from "@/lib/document-id";
+import { proposeDocumentCrop, type DocumentCropProposal } from "@/lib/document-crop";
 import {
   Bot,
   CheckCircle2,
@@ -129,6 +130,8 @@ function maskSupplierLink(value: string) {
 
 export default function InboxPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [cropProposal, setCropProposal] = useState<DocumentCropProposal | null>(null);
+  const [useCropProposal, setUseCropProposal] = useState(false);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | DocumentStatus>("all");
   const [documentType, setDocumentType] = useState<DocumentType>("outro");
@@ -364,10 +367,11 @@ export default function InboxPage() {
       return toast.error("Indique um valor válido.");
     setCaptureStage("uploading");
     const captureMetadata = buildUploadMetadata({ documentType, nif, documentNumber, documentDate });
+    const fileForUpload = useCropProposal && cropProposal ? cropProposal.correctedFile : selectedFile;
     upload.mutate({
-      filename: selectedFile.name,
-      contentType: selectedFile.type,
-      base64: await toBase64(selectedFile),
+      filename: fileForUpload.name,
+      contentType: fileForUpload.type,
+      base64: await toBase64(fileForUpload),
       documentType: captureMetadata.documentType,
       entityName: entityName || undefined,
       nif: captureMetadata.nif,
@@ -378,6 +382,9 @@ export default function InboxPage() {
   };
   const handleFileChosen = async (file: File | null) => {
     setSelectedFile(file);
+    if (cropProposal?.previewUrl) URL.revokeObjectURL(cropProposal.previewUrl);
+    setCropProposal(null);
+    setUseCropProposal(false);
     setAtQr(null);
     if (!file || !file.type.startsWith("image/")) {
       setQrScanState("idle");
@@ -387,6 +394,9 @@ export default function InboxPage() {
     setQrScanState("reading");
     setCaptureStage("reading_qr");
     try {
+      void proposeDocumentCrop(file).then(proposal => {
+        if (proposal) setCropProposal(proposal);
+      }).catch(() => undefined);
       const qr = await readQrFromImage(file);
       if (!qr) {
         setQrScanState("not_found");
@@ -559,6 +569,7 @@ export default function InboxPage() {
               </p>
               <p className="mt-2 text-xs font-medium text-teal-800">{captureStageMessage(captureStage)}</p>
             </div>
+            {cropProposal ? <div className="rounded-xl border border-teal-200 bg-white p-3"><p className="text-xs font-semibold text-teal-800">Recorte sugerido ({Math.round(cropProposal.confidence * 100)}% de confiança)</p><img src={cropProposal.previewUrl} alt="Pré-visualização do recorte sugerido" className="mt-2 max-h-44 w-full rounded-lg object-contain" /><label className="mt-2 flex items-start gap-2 text-xs text-slate-700"><input type="checkbox" checked={useCropProposal} onChange={event => setUseCropProposal(event.target.checked)} className="mt-0.5" />Usar a imagem recortada ao guardar. O ficheiro original permanece selecionado e pode ser mantido.</label></div> : null}
             {qrScanState !== "idle" && <div className={`rounded-lg border p-3 text-xs ${qrScanState === "found" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : qrScanState === "reading" ? "border-teal-200 bg-teal-50 text-teal-800" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
               {qrScanState === "reading" && "A procurar QR Code AT na fotografia…"}
               {qrScanState === "not_found" && "Não foi encontrado QR Code AT nesta imagem. Pode continuar: o OCR fará a leitura do documento."}

@@ -176,7 +176,7 @@
 - [x] Adicionar configuração de runtime Gemini para chave, modelo multimodal económico e interruptor explícito de ativação no Coolify.
 - [x] Avaliar e desenhar uma camada Gemini opcional para leitura documental, com minimização de dados, confiança, limites de custo, auditoria e revisão humana.
 - [ ] Adicionar deteção de limites do papel, correção de perspetiva e recorte local não destrutivo para fotografias de documentos no telemóvel.
-- [ ] Mostrar pré-visualização de recorte e permitir manter o original quando a deteção automática não tiver confiança suficiente.
+- [x] Mostrar pré-visualização de recorte e permitir manter o original quando a deteção automática não tiver confiança suficiente.
 - [ ] Fazer QR e OCR usar a imagem corrigida, preservando o original para auditoria e reprocessamento.
 - [ ] Modelar o fluxo de fornecedor: fatura a pagar, fatura já liquidada/débito direto, pasta definitiva e estado de encaminhamento para TOConline.
 - [x] Criar regras contabilísticas assistidas para IVA por categoria, incluindo alimentação e combustível, sempre sujeitas a confirmação do contabilista antes da exportação.

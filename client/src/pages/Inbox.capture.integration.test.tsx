@@ -17,6 +17,10 @@ vi.mock("@/lib/at-qr", async importOriginal => {
   return { ...actual, readQrFromImage: mocked.readQrFromImage };
 });
 
+vi.mock("@/lib/document-crop", () => ({
+  proposeDocumentCrop: vi.fn(async () => null),
+}));
+
 vi.mock("@/lib/trpc", () => {
   const mutation = (mutate = vi.fn()) => ({ mutate, isPending: false });
   return {

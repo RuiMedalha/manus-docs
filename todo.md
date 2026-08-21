@@ -149,3 +149,8 @@
 - [x] Criar um guia passo a passo de staging, migração de dados, domínio, validação e corte para Coolify.
 - [x] Criar e guardar efetivamente `COOLIFY_DEPLOYMENT_RUNBOOK.md` no repositório com o roteiro de staging, migração de dados, domínio, validação e corte para Coolify.
 - [x] Validar o conteúdo persistido do guia Coolify antes de o disponibilizar para a transição.
+- [x] Desenhar a sincronização OneDrive por tenant, incluindo mapeamento de pastas, importação incremental, deduplicação, permissões e auditoria.
+- [ ] Implementar conector Microsoft Graph OneDrive para pré-visualizar e importar documentos selecionados para a Inbox, sem sincronização automática inicial.
+- [x] Criar um guia de Coolify desde a instalação na VPS até ao primeiro staging, incluindo proxy, MySQL, armazenamento, aplicação e DNS temporário.
+- [x] Criar o guia de Coolify desde a instalação na VPS até ao primeiro staging, incluindo proxy, MySQL, armazenamento, aplicação e DNS temporário.
+- [x] Desenhar a sincronização OneDrive por tenant, incluindo mapeamento de pastas, importação incremental, deduplicação, permissões e auditoria.

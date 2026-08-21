@@ -3,11 +3,12 @@ import { z } from "zod";
 import { createHeartbeatJob, deleteHeartbeatJob } from "../_core/heartbeat";
 import { protectedProcedure, router } from "../_core/trpc";
 import { canPerform } from "../security";
-import { createFinancialRecordFromDocument, createOrUpdatePaymentFromDocument, enqueueDocumentProcessingJob, findOrCreateBusinessEntity, getDocumentForTenant, getDocumentProcessingJobForTenant, getOcrProcessingConfigForTenant, getOrCreateTenantContext, listDocumentProcessingJobsForTenant, listDocumentsForTenant, recordAudit, updateDocumentForTenant, updateOcrProcessingConfig } from "../db";
+import { createFinancialRecordFromDocument, createOrUpdatePaymentFromDocument, enqueueDocumentProcessingJob, findOrCreateBusinessEntity, getDocumentForTenant, getDocumentProcessingJobForTenant, getOcrProcessingConfigForTenant, getOrCreateTenantContext, getSupplierPaymentProfileForTenant, listDocumentProcessingJobsForTenant, listDocumentsForTenant, recordAudit, updateDocumentForTenant, updateOcrProcessingConfig } from "../db";
 import { parseOcrSuggestion } from "../ocr-classification";
 import { selectDocumentsWithoutOcrJob } from "../ocr-queue";
 import { resolveEntityRole } from "../financial-workflow";
 import { isValidLogicalFolderPath } from "../operational-rules";
+import { resolveSupplierPaymentPlan } from "../supplier-payment-rules";
 import { processOcrBatch, processOcrDocument } from "../ocr-processor";
 
 function requireDocumentWrite(role: Parameters<typeof canPerform>[0]) {
@@ -72,12 +73,17 @@ export const ocrRouter = router({
     const suggestion = parseOcrSuggestion(job.suggestion);
     const inferredRole = resolveEntityRole(suggestion.documentType, suggestion.entityRole);
     const entity = suggestion.entityName ? await findOrCreateBusinessEntity({ tenantId: tenantContext.tenant.id, createdByUserId: ctx.user.id, entityType: inferredRole, name: suggestion.entityName, nif: suggestion.nif, status: "proposto" }) : undefined;
-    const finalFolder = input.finalFolder ?? suggestion.archiveFolder;
-    const updated = await updateDocumentForTenant(tenantContext.tenant.id, document.id, { documentType: suggestion.documentType, status: "em_revisao", entityName: suggestion.entityName, entityId: entity?.id ?? null, nif: suggestion.nif, documentNumber: suggestion.documentNumber, documentDate: suggestion.documentDate, dueDate: suggestion.dueDate, totalCents: suggestion.totalCents, vatCents: suggestion.vatCents, tags: suggestion.tags, finalFolder });
+    const supplierProfile = entity && inferredRole === "fornecedor" ? await getSupplierPaymentProfileForTenant(tenantContext.tenant.id, entity.id) : undefined;
+    const paymentPlan = resolveSupplierPaymentPlan({ documentDate: suggestion.documentDate, invoiceDueDate: suggestion.dueDate, suggestedFolder: input.finalFolder ?? suggestion.archiveFolder, profile: supplierProfile ?? null });
+    const finalFolder = paymentPlan.finalFolder;
+    const paymentLifecycle = suggestion.documentType === "fatura_recebida" && paymentPlan.dueDate
+      ? paymentPlan.paymentMethod === "debito_direto" ? "aguarda_debito_direto" : "a_pagar"
+      : "nao_aplicavel";
+    const updated = await updateDocumentForTenant(tenantContext.tenant.id, document.id, { documentType: suggestion.documentType, status: "em_revisao", entityName: suggestion.entityName, entityId: entity?.id ?? null, nif: suggestion.nif, documentNumber: suggestion.documentNumber, documentDate: suggestion.documentDate, dueDate: paymentPlan.dueDate, totalCents: suggestion.totalCents, vatCents: suggestion.vatCents, tags: suggestion.tags, finalFolder, paymentLifecycle });
     if (!updated) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível aplicar a sugestão." });
     await createFinancialRecordFromDocument({ tenantId: tenantContext.tenant.id, documentId: updated.id, documentType: updated.documentType, documentNumber: updated.documentNumber, entityName: updated.entityName, documentDate: updated.documentDate, totalCents: updated.totalCents, currency: suggestion.currency });
-    const payment = await createOrUpdatePaymentFromDocument({ tenantId: tenantContext.tenant.id, documentId: updated.id, createdByUserId: ctx.user.id, documentType: updated.documentType, entityId: entity?.id, entityName: updated.entityName, dueDate: updated.dueDate, totalCents: updated.totalCents, currency: suggestion.currency, source: "ocr" });
-    await recordAudit({ tenantId: tenantContext.tenant.id, actorUserId: ctx.user.id, action: "ocr.suggestion_applied", resourceType: "documentProcessingJob", resourceId: String(job.id), metadata: { documentId: document.id, entityId: entity?.id, paymentProposalId: payment?.id, confidence: job.confidence, accountingNature: suggestion.accountingNature, archiveArea: suggestion.archiveArea, finalFolder } });
+    const payment = await createOrUpdatePaymentFromDocument({ tenantId: tenantContext.tenant.id, documentId: updated.id, createdByUserId: ctx.user.id, documentType: updated.documentType, entityId: entity?.id, entityName: updated.entityName, dueDate: updated.dueDate, totalCents: updated.totalCents, currency: suggestion.currency, paymentMethod: paymentPlan.paymentMethod, debitAccountId: paymentPlan.defaultDebitAccountId, categoryId: paymentPlan.defaultCategoryId, source: "ocr" });
+    await recordAudit({ tenantId: tenantContext.tenant.id, actorUserId: ctx.user.id, action: "ocr.suggestion_applied", resourceType: "documentProcessingJob", resourceId: String(job.id), metadata: { documentId: document.id, entityId: entity?.id, paymentProposalId: payment?.id, paymentMethod: paymentPlan.paymentMethod, paymentLifecycle, calendarState: paymentPlan.calendarState, confidence: job.confidence, accountingNature: suggestion.accountingNature, archiveArea: suggestion.archiveArea, finalFolder } });
     return { document: updated, entity, paymentProposal: payment };
   }),
   enableAutomatic: protectedProcedure.mutation(async ({ ctx }) => {

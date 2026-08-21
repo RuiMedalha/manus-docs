@@ -1,0 +1,1 @@
+ALTER TABLE `documents` ADD `paymentLifecycle` enum('nao_aplicavel','a_pagar','aguarda_debito_direto','paga','conciliada') DEFAULT 'nao_aplicavel' NOT NULL;

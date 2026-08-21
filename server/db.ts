@@ -26,6 +26,7 @@ import {
   paymentSchedules,
   reconciliationSuggestions,
   reconciliations,
+  supplierPaymentProfiles,
   tenantInvitations,
   tenantMembers,
   tenants,
@@ -35,6 +36,7 @@ import { ENV } from "./_core/env";
 import { normaliseSlug, type TenantRole } from "./security";
 import { canClaimOcrJob, statusAfterOcrFailure } from "./ocr-queue";
 import { resolveDocumentCrmStatus } from "./document-crm-status";
+import { documentLifecycleAfterSettlement, paymentClosureAudit } from "./payment-closure";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -309,6 +311,35 @@ export async function updateBusinessEntityForTenant(tenantId: number, id: number
   await db.update(businessEntities).set(values).where(and(eq(businessEntities.tenantId, tenantId), eq(businessEntities.id, id)));
   const rows = await db.select().from(businessEntities).where(and(eq(businessEntities.tenantId, tenantId), eq(businessEntities.id, id))).limit(1);
   return rows[0];
+}
+
+export async function listSupplierPaymentProfilesForTenant(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({ profile: supplierPaymentProfiles, entity: businessEntities }).from(supplierPaymentProfiles)
+    .innerJoin(businessEntities, and(eq(supplierPaymentProfiles.entityId, businessEntities.id), eq(businessEntities.tenantId, tenantId)))
+    .where(eq(supplierPaymentProfiles.tenantId, tenantId)).orderBy(asc(businessEntities.name));
+}
+
+export async function getSupplierPaymentProfileForTenant(tenantId: number, entityId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(supplierPaymentProfiles).where(and(eq(supplierPaymentProfiles.tenantId, tenantId), eq(supplierPaymentProfiles.entityId, entityId))).limit(1);
+  return rows[0];
+}
+
+export async function upsertSupplierPaymentProfile(input: {
+  tenantId: number; entityId: number; createdByUserId: number; paymentMethod: "manual" | "transferencia" | "cartao" | "debito_direto";
+  paymentTermsDays?: number | null; paymentWindowMinDays?: number | null; paymentWindowMaxDays?: number | null;
+  defaultDebitAccountId?: number | null; defaultCategoryId?: number | null; finalFolder?: string | null; isActive?: boolean;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.insert(supplierPaymentProfiles).values({ ...input, paymentTermsDays: input.paymentTermsDays ?? null, paymentWindowMinDays: input.paymentWindowMinDays ?? null, paymentWindowMaxDays: input.paymentWindowMaxDays ?? null, defaultDebitAccountId: input.defaultDebitAccountId ?? null, defaultCategoryId: input.defaultCategoryId ?? null, finalFolder: input.finalFolder ?? null, isActive: input.isActive ?? true })
+    .onDuplicateKeyUpdate({ set: { paymentMethod: input.paymentMethod, paymentTermsDays: input.paymentTermsDays ?? null, paymentWindowMinDays: input.paymentWindowMinDays ?? null, paymentWindowMaxDays: input.paymentWindowMaxDays ?? null, defaultDebitAccountId: input.defaultDebitAccountId ?? null, defaultCategoryId: input.defaultCategoryId ?? null, finalFolder: input.finalFolder ?? null, isActive: input.isActive ?? true } });
+  const profile = await getSupplierPaymentProfileForTenant(input.tenantId, input.entityId);
+  if (!profile) throw new Error("Não foi possível guardar o perfil do fornecedor.");
+  return profile;
 }
 
 export async function listFinancialAccountsForTenant(tenantId: number) {
@@ -835,7 +866,7 @@ export async function createPaymentSchedule(input: typeof paymentSchedules.$infe
   return rows[0];
 }
 
-export async function updatePaymentScheduleForTenant(tenantId: number, id: number, input: { counterparty?: string; entityId?: number | null; debitAccountId?: number | null; categoryId?: number | null; dueDate?: string; amountCents?: number; currency?: string; status?: "pendente" | "pago" | "cancelado"; approvalStatus?: "proposta" | "aprovada" | "rejeitada"; approvedByUserId?: number | null; approvedAt?: Date | null; paidAt?: string | null; notes?: string | null }) {
+export async function updatePaymentScheduleForTenant(tenantId: number, id: number, input: { counterparty?: string; entityId?: number | null; debitAccountId?: number | null; categoryId?: number | null; dueDate?: string; amountCents?: number; currency?: string; paymentMethod?: "manual" | "transferencia" | "cartao" | "debito_direto"; status?: "pendente" | "pago" | "cancelado"; approvalStatus?: "proposta" | "aprovada" | "rejeitada"; approvedByUserId?: number | null; approvedAt?: Date | null; paidAt?: string | null; settlementSource?: "manual" | "bank_reconciliation" | null; bankTransactionId?: number | null; notes?: string | null }) {
   const db = await getDb();
   if (!db) throw new Error("A base de dados não está disponível.");
   await db.update(paymentSchedules).set(input).where(and(eq(paymentSchedules.tenantId, tenantId), eq(paymentSchedules.id, id)));
@@ -843,11 +874,11 @@ export async function updatePaymentScheduleForTenant(tenantId: number, id: numbe
   return rows[0];
 }
 
-export async function createOrUpdatePaymentFromDocument(input: { tenantId: number; documentId: number; createdByUserId: number; documentType: "fatura_recebida" | "fatura_emitida" | "recibo" | "comprovativo" | "encomenda" | "outro"; entityId?: number | null; entityName: string | null; dueDate: string | null; totalCents: number | null; currency: string; source?: "manual" | "ocr" | "crm" }) {
+export async function createOrUpdatePaymentFromDocument(input: { tenantId: number; documentId: number; createdByUserId: number; documentType: "fatura_recebida" | "fatura_emitida" | "recibo" | "comprovativo" | "encomenda" | "outro"; entityId?: number | null; entityName: string | null; dueDate: string | null; totalCents: number | null; currency: string; paymentMethod?: "manual" | "transferencia" | "cartao" | "debito_direto"; debitAccountId?: number | null; categoryId?: number | null; source?: "manual" | "ocr" | "crm" }) {
   if (input.documentType !== "fatura_recebida" || !input.dueDate || input.totalCents === null) return undefined;
   const db = await getDb();
   if (!db) throw new Error("A base de dados não está disponível.");
-  await db.insert(paymentSchedules).values({ tenantId: input.tenantId, documentId: input.documentId, entityId: input.entityId ?? null, createdByUserId: input.createdByUserId, counterparty: input.entityName || "Entidade não identificada", dueDate: input.dueDate, amountCents: input.totalCents, currency: input.currency, approvalStatus: "proposta", source: input.source ?? "manual" }).onDuplicateKeyUpdate({ set: { entityId: input.entityId ?? null, counterparty: input.entityName || "Entidade não identificada", dueDate: input.dueDate, amountCents: input.totalCents, currency: input.currency, source: input.source ?? "manual" } });
+  await db.insert(paymentSchedules).values({ tenantId: input.tenantId, documentId: input.documentId, entityId: input.entityId ?? null, createdByUserId: input.createdByUserId, counterparty: input.entityName || "Entidade não identificada", dueDate: input.dueDate, amountCents: input.totalCents, currency: input.currency, paymentMethod: input.paymentMethod ?? "manual", debitAccountId: input.debitAccountId ?? null, categoryId: input.categoryId ?? null, approvalStatus: "proposta", source: input.source ?? "manual" }).onDuplicateKeyUpdate({ set: { entityId: input.entityId ?? null, counterparty: input.entityName || "Entidade não identificada", dueDate: input.dueDate, amountCents: input.totalCents, currency: input.currency, paymentMethod: input.paymentMethod ?? "manual", debitAccountId: input.debitAccountId ?? null, categoryId: input.categoryId ?? null, source: input.source ?? "manual" } });
   const rows = await db.select().from(paymentSchedules).where(and(eq(paymentSchedules.tenantId, input.tenantId), eq(paymentSchedules.documentId, input.documentId))).limit(1);
   return rows[0];
 }
@@ -894,6 +925,17 @@ export async function reviewReconciliationSuggestion(tenantId: number, id: numbe
     await db.update(reconciliationSuggestions).set({ status: "rejeitada", reviewedByUserId: reviewerId, reviewedAt }).where(and(eq(reconciliationSuggestions.tenantId, tenantId), eq(reconciliationSuggestions.bankTransactionId, suggestion.bankTransactionId), eq(reconciliationSuggestions.status, "pendente")));
     await db.update(reconciliationSuggestions).set({ status: "aceite", reviewedByUserId: reviewerId, reviewedAt }).where(and(eq(reconciliationSuggestions.tenantId, tenantId), eq(reconciliationSuggestions.id, id)));
     await db.update(bankTransactions).set({ reconciliationStatus: "conciliada" }).where(and(eq(bankTransactions.tenantId, tenantId), eq(bankTransactions.id, suggestion.bankTransactionId)));
+    if (record.documentId) {
+      const payments = await db.select().from(paymentSchedules).where(and(eq(paymentSchedules.tenantId, tenantId), eq(paymentSchedules.documentId, record.documentId), eq(paymentSchedules.status, "pendente"))).limit(1);
+      if (payments[0]) {
+        const transaction = await db.select().from(bankTransactions).where(and(eq(bankTransactions.tenantId, tenantId), eq(bankTransactions.id, suggestion.bankTransactionId))).limit(1);
+        const paidAt = transaction[0]?.transactionDate ?? null;
+        await db.update(paymentSchedules).set({ status: "pago", paidAt, settlementSource: "bank_reconciliation", bankTransactionId: suggestion.bankTransactionId }).where(and(eq(paymentSchedules.tenantId, tenantId), eq(paymentSchedules.id, payments[0].id)));
+        const closureAudit = paymentClosureAudit(payments[0].paymentMethod, "bank_reconciliation", record.documentId, paidAt);
+        await recordAudit({ tenantId, actorUserId: reviewerId, action: closureAudit.action, resourceType: "paymentSchedule", resourceId: String(payments[0].id), metadata: { ...closureAudit.metadata, bankTransactionId: suggestion.bankTransactionId } });
+      }
+      await db.update(documents).set({ paymentLifecycle: documentLifecycleAfterSettlement("bank_reconciliation") }).where(and(eq(documents.tenantId, tenantId), eq(documents.id, record.documentId)));
+    }
   } else {
     await db.update(reconciliationSuggestions).set({ status: "rejeitada", reviewedByUserId: reviewerId, reviewedAt }).where(and(eq(reconciliationSuggestions.tenantId, tenantId), eq(reconciliationSuggestions.id, id)));
     await db.update(bankTransactions).set({ reconciliationStatus: "por_conciliar" }).where(and(eq(bankTransactions.tenantId, tenantId), eq(bankTransactions.id, suggestion.bankTransactionId)));
@@ -927,10 +969,22 @@ export async function updateDocumentForTenant(
     vatCents: number | null;
     tags: string[];
     finalFolder: string | null;
+    paymentLifecycle?: "nao_aplicavel" | "a_pagar" | "aguarda_debito_direto" | "paga" | "conciliada";
   },
 ) {
   const db = await getDb();
   if (!db) throw new Error("A base de dados não está disponível.");
   await db.update(documents).set(input).where(and(eq(documents.tenantId, tenantId), eq(documents.id, id)));
+  return getDocumentForTenant(tenantId, id);
+}
+
+export async function setDocumentPaymentLifecycleForTenant(
+  tenantId: number,
+  id: number,
+  paymentLifecycle: "nao_aplicavel" | "a_pagar" | "aguarda_debito_direto" | "paga" | "conciliada",
+) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.update(documents).set({ paymentLifecycle }).where(and(eq(documents.tenantId, tenantId), eq(documents.id, id)));
   return getDocumentForTenant(tenantId, id);
 }

@@ -85,6 +85,20 @@
       "when": 1787093854568,
       "tag": "0011_lowly_thunderball",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1787319755975,
+      "tag": "0012_giant_adam_warlock",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1787320611891,
+      "tag": "0013_soft_blacklash",
+      "breakpoints": true
     }
   ]
 }

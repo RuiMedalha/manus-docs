@@ -56,6 +56,20 @@ const statusLabels: Record<string, string> = {
   em_revisao: "Em revisão",
   arquivado: "Arquivado",
 };
+const paymentLifecycleLabels: Record<string, string> = {
+  nao_aplicavel: "Sem pagamento",
+  a_pagar: "A pagar",
+  aguarda_debito_direto: "Aguarda débito",
+  paga: "Paga",
+  conciliada: "Conciliada",
+};
+const paymentLifecycleClasses: Record<string, string> = {
+  nao_aplicavel: "bg-slate-100 text-slate-600",
+  a_pagar: "bg-amber-100 text-amber-800",
+  aguarda_debito_direto: "bg-sky-100 text-sky-800",
+  paga: "bg-emerald-100 text-emerald-800",
+  conciliada: "bg-teal-100 text-teal-800",
+};
 const ocrStatus: Record<string, string> = {
   pendente: "Na fila",
   em_processamento: "A processar",
@@ -664,7 +678,7 @@ export default function InboxPage() {
               </div>
             ) : documents.data?.length ? (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[940px] text-left text-sm">
+                <table className="w-full min-w-[1040px] text-left text-sm">
                   <thead className="border-b text-xs uppercase tracking-wide text-slate-500">
                     <tr>
                       <th className="pb-3">
@@ -681,6 +695,7 @@ export default function InboxPage() {
                       <th className="pb-3 font-medium">Documento</th>
                       <th className="pb-3 font-medium">Tipo</th>
                       <th className="pb-3 font-medium">Estado</th>
+                      <th className="pb-3 font-medium">Pagamento</th>
                       <th className="pb-3 font-medium">OCR</th>
                       <th className="pb-3 font-medium">Pasta</th>
                       <th className="pb-3" />
@@ -723,6 +738,11 @@ export default function InboxPage() {
                               className="bg-slate-100 text-slate-600"
                             >
                               {statusLabels[doc.status]}
+                            </Badge>
+                          </td>
+                          <td className="py-4">
+                            <Badge variant="secondary" className={paymentLifecycleClasses[doc.paymentLifecycle] ?? paymentLifecycleClasses.nao_aplicavel}>
+                              {paymentLifecycleLabels[doc.paymentLifecycle] ?? paymentLifecycleLabels.nao_aplicavel}
                             </Badge>
                           </td>
                           <td className="py-4">

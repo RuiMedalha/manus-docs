@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { canPerform } from "../security";
-import { createCrmSyncRun, createFinancialAccount, createFinancialCategory, findOrCreateBusinessEntity, finishCrmSyncRun, getCrmConnectionForTenant, getOrCreateTenantContext, listBusinessEntitiesForTenant, listCrmConnectionsForTenant, listCrmSyncRunsForTenant, listFinancialAccountsForTenant, listFinancialCategoriesForTenant, recordAudit, updateBusinessEntityForTenant, updateCrmConnection } from "../db";
+import { createCrmSyncRun, createFinancialAccount, createFinancialCategory, findOrCreateBusinessEntity, finishCrmSyncRun, getCrmConnectionForTenant, getOrCreateTenantContext, listBusinessEntitiesForTenant, listCrmConnectionsForTenant, listCrmSyncRunsForTenant, listFinancialAccountsForTenant, listFinancialCategoriesForTenant, listSupplierPaymentProfilesForTenant, recordAudit, updateBusinessEntityForTenant, updateCrmConnection, upsertSupplierPaymentProfile } from "../db";
 import { crmEndpoint, crmHeaders, crmPayload, validateCrmConnection, valueAtPath } from "../crm-adapter";
 import { protectedProcedure, router } from "../_core/trpc";
 
@@ -29,6 +29,20 @@ export const masterDataRouter = router({
     if (!entity) throw new TRPCError({ code: "NOT_FOUND", message: "Entidade não encontrada." });
     await recordAudit({ tenantId: tenant.tenant.id, actorUserId: ctx.user.id, action: "entity.updated", resourceType: "businessEntity", resourceId: String(id) });
     return entity;
+  }),
+  supplierProfiles: protectedProcedure.query(async ({ ctx }) => {
+    const tenant = await getOrCreateTenantContext(ctx.user);
+    return listSupplierPaymentProfilesForTenant(tenant.tenant.id);
+  }),
+  saveSupplierProfile: protectedProcedure.input(z.object({ entityId: z.number().int().positive(), paymentMethod: z.enum(["manual", "transferencia", "cartao", "debito_direto"]), paymentTermsDays: z.number().int().min(0).max(365).nullable().optional(), paymentWindowMinDays: z.number().int().min(0).max(365).nullable().optional(), paymentWindowMaxDays: z.number().int().min(0).max(365).nullable().optional(), defaultDebitAccountId: z.number().int().positive().nullable().optional(), defaultCategoryId: z.number().int().positive().nullable().optional(), finalFolder: z.string().min(2).max(512).nullable().optional(), isActive: z.boolean().optional() })).mutation(async ({ ctx, input }) => {
+    const tenant = await getOrCreateTenantContext(ctx.user); requireFinancialWrite(tenant.membership.role);
+    const supplier = (await listBusinessEntitiesForTenant(tenant.tenant.id, "fornecedor")).find(entity => entity.id === input.entityId);
+    if (!supplier) throw new TRPCError({ code: "NOT_FOUND", message: "Fornecedor não encontrado." });
+    if (input.paymentWindowMinDays !== undefined && input.paymentWindowMaxDays !== undefined && input.paymentWindowMinDays !== null && input.paymentWindowMaxDays !== null && input.paymentWindowMinDays > input.paymentWindowMaxDays) throw new TRPCError({ code: "BAD_REQUEST", message: "O início da janela não pode ser posterior ao fim." });
+    const { entityId, ...profileInput } = input;
+    const profile = await upsertSupplierPaymentProfile({ tenantId: tenant.tenant.id, entityId, createdByUserId: ctx.user.id, ...profileInput });
+    await recordAudit({ tenantId: tenant.tenant.id, actorUserId: ctx.user.id, action: "supplier_payment_profile.saved", resourceType: "supplierPaymentProfile", resourceId: String(profile.id), metadata: { entityId: supplier.id, paymentMethod: profile.paymentMethod, paymentTermsDays: profile.paymentTermsDays } });
+    return profile;
   }),
   accounts: protectedProcedure.query(async ({ ctx }) => { const tenant = await getOrCreateTenantContext(ctx.user); return listFinancialAccountsForTenant(tenant.tenant.id); }),
   createAccount: protectedProcedure.input(z.object({ accountType: accountKind, code: z.string().min(1).max(32), name: z.string().min(2).max(160), iban: z.string().max(64).optional() })).mutation(async ({ ctx, input }) => {

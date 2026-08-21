@@ -178,6 +178,9 @@ export const documents = mysqlTable(
     tags: json("tags"),
     suggestedFolder: varchar("suggestedFolder", { length: 512 }),
     finalFolder: varchar("finalFolder", { length: 512 }),
+    paymentLifecycle: mysqlEnum("paymentLifecycle", ["nao_aplicavel", "a_pagar", "aguarda_debito_direto", "paga", "conciliada"])
+      .default("nao_aplicavel")
+      .notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
@@ -211,6 +214,32 @@ export const businessEntities = mysqlTable(
     uniqueIndex("businessEntities_tenant_nif_uq").on(table.tenantId, table.nif),
     index("businessEntities_tenant_name_idx").on(table.tenantId, table.normalizedName),
     index("businessEntities_tenant_type_idx").on(table.tenantId, table.entityType, table.status),
+  ],
+);
+
+export const supplierPaymentProfiles = mysqlTable(
+  "supplierPaymentProfiles",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    tenantId: int("tenantId").notNull(),
+    entityId: int("entityId").notNull(),
+    paymentMethod: mysqlEnum("paymentMethod", ["manual", "transferencia", "cartao", "debito_direto"])
+      .default("manual")
+      .notNull(),
+    paymentTermsDays: int("paymentTermsDays"),
+    paymentWindowMinDays: int("paymentWindowMinDays"),
+    paymentWindowMaxDays: int("paymentWindowMaxDays"),
+    defaultDebitAccountId: int("defaultDebitAccountId"),
+    defaultCategoryId: int("defaultCategoryId"),
+    finalFolder: varchar("finalFolder", { length: 512 }),
+    isActive: boolean("isActive").default(true).notNull(),
+    createdByUserId: int("createdByUserId").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("supplierPaymentProfiles_tenant_entity_uq").on(table.tenantId, table.entityId),
+    index("supplierPaymentProfiles_tenant_method_idx").on(table.tenantId, table.paymentMethod, table.isActive),
   ],
 );
 
@@ -445,18 +474,24 @@ export const paymentSchedules = mysqlTable(
     dueDate: date("dueDate", { mode: "string" }).notNull(),
     amountCents: bigint("amountCents", { mode: "number" }).notNull(),
     currency: varchar("currency", { length: 3 }).default("EUR").notNull(),
+    paymentMethod: mysqlEnum("paymentMethod", ["manual", "transferencia", "cartao", "debito_direto"])
+      .default("manual")
+      .notNull(),
     status: mysqlEnum("status", ["pendente", "pago", "cancelado"]).default("pendente").notNull(),
     approvalStatus: mysqlEnum("approvalStatus", ["proposta", "aprovada", "rejeitada"]).default("proposta").notNull(),
     source: mysqlEnum("source", ["manual", "ocr", "crm"]).default("manual").notNull(),
     approvedByUserId: int("approvedByUserId"),
     approvedAt: timestamp("approvedAt"),
     paidAt: date("paidAt", { mode: "string" }),
+    settlementSource: mysqlEnum("settlementSource", ["manual", "bank_reconciliation"]),
+    bankTransactionId: int("bankTransactionId"),
     notes: text("notes"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
   table => [
     index("paymentSchedules_tenant_due_idx").on(table.tenantId, table.dueDate, table.status),
+    index("paymentSchedules_tenant_method_idx").on(table.tenantId, table.paymentMethod, table.status),
     uniqueIndex("paymentSchedules_tenant_document_uq").on(table.tenantId, table.documentId),
   ],
 );

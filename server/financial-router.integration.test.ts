@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "./_core/context";
 
 const state = vi.hoisted(() => ({
-  payment: { id: 1, approvalStatus: "proposta" as "proposta" | "aprovada", debitAccountId: null as number | null, categoryId: null as number | null, status: "pendente", dueDate: "2026-09-01", amountCents: 12500, currency: "EUR" },
+  payment: { id: 1, documentId: 88 as number | null, paymentMethod: "manual" as "manual" | "transferencia" | "cartao" | "debito_direto", approvalStatus: "proposta" as "proposta" | "aprovada", debitAccountId: null as number | null, categoryId: null as number | null, status: "pendente", dueDate: "2026-09-01", amountCents: 12500, currency: "EUR" },
   entity: { id: 9, status: "proposto" as "proposto" | "ativo", name: "ACME", entityType: "fornecedor" as const },
   policies: [] as Array<{ id: number; tenantId: number; name: string; minAmountCents: number; categoryId: number | null; requiredRole: "admin" | "contabilidade" | "operador" | "aprovador"; enabled: boolean }>,
 }));
@@ -17,7 +17,7 @@ vi.mock("./db", () => ({
   listFinancialAccountsForTenant: vi.fn(async () => [{ id: 3, accountType: "banco", isActive: true }]),
   listFinancialCategoriesForTenant: vi.fn(async () => [{ id: 4, direction: "despesa", isActive: true }]),
   updatePaymentScheduleForTenant: vi.fn(async (_tenantId: number, _id: number, input: Record<string, unknown>) => { Object.assign(state.payment, input); return state.payment; }),
-  createPaymentSchedule: vi.fn(), createOrUpdatePaymentFromDocument: vi.fn(), listDocumentsForTenant: vi.fn(async () => []), recordAudit: vi.fn(),
+  createPaymentSchedule: vi.fn(), createOrUpdatePaymentFromDocument: vi.fn(), listDocumentsForTenant: vi.fn(async () => []), recordAudit: vi.fn(), setDocumentPaymentLifecycleForTenant: vi.fn(),
   listBusinessEntitiesForTenant: vi.fn(async () => [state.entity]),
   updateBusinessEntityForTenant: vi.fn(async (_tenantId: number, _id: number, input: Record<string, unknown>) => { Object.assign(state.entity, input); return state.entity; }),
   createFinancialAccount: vi.fn(), createFinancialCategory: vi.fn(), findOrCreateBusinessEntity: vi.fn(), listCrmConnectionsForTenant: vi.fn(async () => []), listCrmSyncRunsForTenant: vi.fn(async () => []), updateCrmConnection: vi.fn(), getCrmConnectionForTenant: vi.fn(), createCrmSyncRun: vi.fn(), finishCrmSyncRun: vi.fn(),
@@ -25,12 +25,13 @@ vi.mock("./db", () => ({
 
 import { masterDataRouter } from "./routers/master-data";
 import { paymentsRouter } from "./routers/payments";
+import * as db from "./db";
 
 const ctx = { user: { id: 1, openId: "integration-user", role: "admin" }, req: {}, res: {} } as unknown as TrpcContext;
 const accountingCtx = { user: { id: 2, openId: "accounting-user", role: "user" }, req: {}, res: {} } as unknown as TrpcContext;
 
 describe("integração financeira dos routers", () => {
-  beforeEach(() => { state.payment = { id: 1, approvalStatus: "proposta", debitAccountId: null, categoryId: null, status: "pendente", dueDate: "2026-09-01", amountCents: 12500, currency: "EUR" }; state.entity = { id: 9, status: "proposto", name: "ACME", entityType: "fornecedor" }; state.policies = []; });
+  beforeEach(() => { state.payment = { id: 1, documentId: 88, paymentMethod: "manual", approvalStatus: "proposta", debitAccountId: null, categoryId: null, status: "pendente", dueDate: "2026-09-01", amountCents: 12500, currency: "EUR" }; state.entity = { id: 9, status: "proposto", name: "ACME", entityType: "fornecedor" }; state.policies = []; vi.mocked(db.recordAudit).mockClear(); vi.mocked(db.setDocumentPaymentLifecycleForTenant).mockClear(); });
   it("confirma uma entidade proposta no mesmo tenant", async () => {
     const caller = masterDataRouter.createCaller(ctx);
     const result = await caller.updateEntity({ id: 9, status: "ativo" });
@@ -43,6 +44,16 @@ describe("integração financeira dos routers", () => {
     expect(approved?.approvalStatus).toBe("aprovada");
     const settled = await caller.updateStatus({ id: 1, status: "pago", paidAt: "2026-09-02" });
     expect(settled?.status).toBe("pago");
+  });
+  it("regista o fecho manual de débito direto e atualiza o estado da fatura", async () => {
+    state.payment.paymentMethod = "debito_direto";
+    state.payment.approvalStatus = "aprovada";
+    state.payment.debitAccountId = 3;
+    state.payment.categoryId = 4;
+    const caller = paymentsRouter.createCaller(ctx);
+    await caller.updateStatus({ id: 1, status: "pago", paidAt: "2026-09-10" });
+    expect(db.setDocumentPaymentLifecycleForTenant).toHaveBeenCalledWith(7, 88, "paga");
+    expect(db.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "payment.direct_debit_manually_confirmed", metadata: expect.objectContaining({ closureType: "direct_debit_manual_confirmation", documentId: 88 }) }));
   });
   it("cria, edita, suspende e remove políticas no tenant ativo", async () => {
     const caller = paymentsRouter.createCaller(ctx);

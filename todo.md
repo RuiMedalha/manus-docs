@@ -153,6 +153,8 @@
 - [ ] Implementar o envio real ao TOConline via API com credenciais seguras no servidor, guardando `externalDocumentId`, `sentAt`, `sentByUserId`, resposta e falhas.
 - [ ] Separar no mapa mensal TOConline os documentos efetivamente enviados das propostas apenas preparadas ou aprovadas.
 - [ ] Cobrir o envio TOConline por testes de sucesso, falha e reenvio protegido por `exportReference`, após credenciais de sandbox serem fornecidas.
+- [x] Integrar referências oficiais do SNC e do sistema de normalização contabilística nas propostas contabilísticas, mantendo-as versionadas e sujeitas a revisão profissional.
+- [x] Documentar que as credenciais e tokens TOConline são configurados apenas como segredos no Coolify, sem campos de introdução ou exposição no cliente.
 - [x] Criar um guia passo a passo de staging, migração de dados, domínio, validação e corte para Coolify.
 - [x] Criar e guardar efetivamente `COOLIFY_DEPLOYMENT_RUNBOOK.md` no repositório com o roteiro de staging, migração de dados, domínio, validação e corte para Coolify.
 - [x] Validar o conteúdo persistido do guia Coolify antes de o disponibilizar para a transição.

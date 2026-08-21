@@ -48,6 +48,8 @@ Escolha uma destas opções:
 
 Crie um bucket privado, por exemplo `docuflux-staging`, e uma credencial limitada a esse bucket. **Não torne o bucket público**: o DocuFlux deve fornecer URLs assinadas de curta duração para ver os documentos.
 
+Quando escolher MinIO no Coolify, importe [`deploy/minio.coolify.compose.yml`](deploy/minio.coolify.compose.yml) como recurso Compose separado. O serviço usa o volume persistente `minio_data`; crie depois o bucket privado e uma access key exclusiva do DocuFlux no painel administrativo MinIO. A aplicação faz uploads pelo endpoint interno em `S3_ENDPOINT` e assina downloads pelo domínio HTTPS público `S3_PUBLIC_ENDPOINT`, por exemplo `https://storage.seudominio.pt`. Assim, o browser abre documentos privados com uma assinatura de curta duração sem depender da rede interna Coolify.
+
 ## 3. Preparar o código antes do primeiro deploy funcional
 
 Esta é a única etapa que ainda requer adaptação no repositório antes de a aplicação poder funcionar completamente fora da plataforma atual.
@@ -83,6 +85,7 @@ Adicione variáveis como **runtime variables**, não build variables, quando for
 | `JWT_SECRET` | Novo segredo aleatório de 64+ caracteres | Nunca reutilizar o valor gerido atual. |
 | `APP_BASE_URL` | `https://staging.docuflux.seudominio.pt` | Necessário para links de recuperação e OAuth. |
 | `S3_ENDPOINT` | Endpoint MinIO/R2/S3 | Após a adaptação S3. |
+| `S3_PUBLIC_ENDPOINT` | Domínio HTTPS público do endpoint S3/MinIO | Obrigatório quando MinIO usa hostname interno distinto. |
 | `S3_REGION` | Região aplicável | Após a adaptação S3. |
 | `S3_BUCKET` | `docuflux-staging` | Bucket privado. |
 | `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | Credenciais do bucket | Segredos de runtime. |

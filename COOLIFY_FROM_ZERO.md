@@ -63,6 +63,26 @@ Não crie tabelas nem execute SQL agora. As migrações são aplicadas de forma 
 
 Crie um bucket **privado** para staging. Não use a base MySQL para guardar PDFs, fotos ou DOCX; a base guarda metadados e o bucket guarda os bytes dos ficheiros.
 
+### 6.1 Executar MinIO no Coolify
+
+Para manter tudo na VPS, crie um recurso **Docker Compose** separado no ambiente `staging` ou `production` e use [`deploy/minio.coolify.compose.yml`](deploy/minio.coolify.compose.yml). No painel Coolify, serão pedidas as variáveis `MINIO_ROOT_USER` e `MINIO_ROOT_PASSWORD`; use valores únicos, longos e guardados no gestor de palavras-passe. O volume `minio_data` mantém os ficheiros entre deploys.[6]
+
+Não exponha uma porta de host. A aplicação DocuFlux comunica internamente com MinIO na porta 9000. Para o navegador abrir documentos por URLs assinadas, atribua ao serviço MinIO um domínio HTTPS público, por exemplo `storage.seudominio.pt`, encaminhado para a porta 9000. O bucket continua privado: o domínio apenas recebe pedidos que contenham uma assinatura temporária válida.
+
+Depois do primeiro arranque, abra a consola MinIO no acesso administrativo restrito, crie um bucket privado como `docuflux-staging` ou `docuflux-production` e crie uma access key exclusiva para o DocuFlux. Não use as credenciais root MinIO dentro da aplicação.
+
+| Variável da aplicação DocuFlux | Valor MinIO no Coolify |
+| --- | --- |
+| `S3_ENDPOINT` | Endpoint interno do serviço, por exemplo `http://minio:9000` ou o hostname interno indicado pelo Coolify. |
+| `S3_PUBLIC_ENDPOINT` | Domínio HTTPS público do MinIO, por exemplo `https://storage.seudominio.pt`. |
+| `S3_REGION` | `us-east-1`. |
+| `S3_BUCKET` | Bucket privado criado para o ambiente. |
+| `S3_ACCESS_KEY_ID` | Access key exclusiva da aplicação. |
+| `S3_SECRET_ACCESS_KEY` | Secret da access key da aplicação. |
+| `S3_FORCE_PATH_STYLE` | `true` para MinIO. |
+
+O DocuFlux usa o endpoint interno para uploads e a URL pública apenas quando gera downloads assinados de 15 minutos. Esta separação evita expor o serviço interno ao browser, mantendo a visualização dos ficheiros funcional.
+
 ## 7. Preparar o repositório antes da aplicação funcional
 
 O Dockerfile já consegue construir a aplicação, mas a versão de produção precisa destas alterações antes de receber documentos reais:
@@ -111,3 +131,4 @@ Crie um ambiente `production` com base de dados, bucket e segredos próprios. Mi
 [3]: https://coolify.io/docs/applications/build-packs/dockerfile "Coolify — Dockerfile Build Pack"
 [4]: https://coolify.io/docs/knowledge-base/health-checks "Coolify — Health Checks"
 [5]: https://coolify.io/docs/knowledge-base/environment-variables "Coolify — Environment Variables"
+[6]: https://coolify.io/docs/knowledge-base/persistent-storage "Coolify — Persistent Storage"

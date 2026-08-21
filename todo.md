@@ -151,6 +151,13 @@
 - [x] Validar o conteúdo persistido do guia Coolify antes de o disponibilizar para a transição.
 - [x] Desenhar a sincronização OneDrive por tenant, incluindo mapeamento de pastas, importação incremental, deduplicação, permissões e auditoria.
 - [ ] Implementar conector Microsoft Graph OneDrive para pré-visualizar e importar documentos selecionados para a Inbox, sem sincronização automática inicial.
+- [ ] Configurar primeiro um ambiente staging do DocuFlux no Coolify e validar portabilidade antes de retomar o conector OneDrive Microsoft 365.
+- [ ] Promover o DocuFlux para produção no Coolify após validação transitória de login, armazenamento, OCR, base de dados e recuperação.
+- [ ] Preparar todos os serviços de produção do DocuFlux no Coolify: aplicação, MySQL, MinIO e volumes persistentes.
+- [x] Substituir o adaptador de armazenamento dependente da plataforma por MinIO/S3 compatível, mantendo URLs assinadas e suporte de desenvolvimento atual.
+- [ ] Configurar uma URL pública de endpoint S3/MinIO para que URLs assinadas sejam acessíveis pelo navegador fora da rede interna do Coolify.
+- [x] Adicionar uma definição Coolify Compose para MinIO persistente e criação privada do bucket documental de produção.
+- [x] Definir um fluxo n8n futuro para copiar documentos aprovados do MinIO/DocuFlux para OneDrive, preservando origem, estado e auditoria.
 - [x] Criar um guia de Coolify desde a instalação na VPS até ao primeiro staging, incluindo proxy, MySQL, armazenamento, aplicação e DNS temporário.
 - [x] Criar o guia de Coolify desde a instalação na VPS até ao primeiro staging, incluindo proxy, MySQL, armazenamento, aplicação e DNS temporário.
 - [x] Desenhar a sincronização OneDrive por tenant, incluindo mapeamento de pastas, importação incremental, deduplicação, permissões e auditoria.

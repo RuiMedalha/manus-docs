@@ -74,6 +74,31 @@ O conector Outlook existente pode partilhar o mesmo registo Microsoft Entra e a 
 3. **Automática:** permitir importar novos ficheiros elegíveis depois de o administrador aprovar a regra e a frequência.
 4. **Eventos:** adicionar webhooks apenas se precisar de resposta quase imediata e houver um endpoint Coolify estável para receber/validar notificações.
 
+## Fase posterior: cópia OneDrive através de n8n
+
+Depois de o DocuFlux estar estável em produção no Coolify, o n8n pode correr como um recurso separado no mesmo Coolify e copiar documentos **já aprovados** para OneDrive. O n8n suporta descarregar ficheiros de S3 e criar ficheiros/pastas no OneDrive.[6] [7]
+
+| Etapa do workflow | Regra de segurança |
+| --- | --- |
+| Disparo | Uma rotina identifica documentos com revisão concluída, pasta final e ainda não exportados. A execução começa desativada e exige ativação explícita. |
+| Leitura | O n8n usa uma credencial S3 de **leitura** limitada ao bucket/prefixo DocuFlux. Nunca usa a credencial root do MinIO. |
+| Caminho | A pasta OneDrive é construída a partir da `finalFolder` confirmada, não a partir de texto OCR não revisto. |
+| Cópia | O nó OneDrive cria a pasta quando necessário e carrega uma cópia com o nome final do documento. |
+| Registo | O workflow chama uma API DocuFlux autenticada para guardar `oneDriveItemId`, caminho, hash, data e execução n8n. |
+| Repetição | Antes de enviar, compara o hash e o ID de exportação. A repetição é ignorada em vez de criar duplicados. |
+| Falha | Mantém o documento no DocuFlux, marca a exportação como falhada e permite retentar. Não apaga ficheiros de nenhum lado. |
+
+> O n8n será uma **cópia de distribuição**, não a fonte de verdade. O original privado, a classificação, a pasta final e a auditoria continuam no DocuFlux/MinIO. Esta escolha permite recuperar o OneDrive ou voltar a exportar sem perder o histórico contabilístico.
+
+Para esta fase há duas abordagens possíveis; a decisão só será tomada depois de o Coolify estar em produção:
+
+| Abordagem | Como funciona | Vantagem | Limite |
+| --- | --- | --- | --- |
+| **Execução periódica** | O n8n verifica documentos aprovados, por exemplo a cada hora. | Mais simples, previsível e sem endpoint externo de disparo. | A cópia não é imediata. |
+| **Disparo por evento** | O DocuFlux chama um webhook n8n quando a revisão é aplicada. | A cópia começa quase de imediato. | Requer endpoint, segredo de webhook e gestão de falhas. |
+
+O primeiro workflow deve ser **unidirecional: DocuFlux/MinIO → OneDrive**. O OneDrive não deve mover, apagar nem devolver ficheiros para o DocuFlux enquanto não houver uma reconciliação separada e aprovada.
+
 ## Decisões necessárias
 
 1. A importação deve ser apenas **OneDrive → DocuFlux**, ou pretende também criar/mover ficheiros no OneDrive a partir do DocuFlux?
@@ -88,3 +113,5 @@ O conector Outlook existente pode partilhar o mesmo registo Microsoft Entra e a 
 [3]: https://learn.microsoft.com/en-us/graph/api/driveitem-get-content?view=graph-rest-1.0 "Microsoft Graph — Download driveItem content"
 [4]: https://learn.microsoft.com/en-us/graph/change-notifications-delivery-webhooks "Microsoft Graph — Receive change notifications through webhooks"
 [5]: https://learn.microsoft.com/en-us/graph/api/subscription-post-subscriptions?view=graph-rest-1.0 "Microsoft Graph — Create subscription"
+[6]: https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.awss3/ "n8n — AWS S3 node"
+[7]: https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.microsoftonedrive/ "n8n — Microsoft OneDrive node"

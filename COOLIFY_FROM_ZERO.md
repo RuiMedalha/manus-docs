@@ -113,6 +113,7 @@ Configure as variáveis como runtime secrets no Coolify. Variáveis de runtime n
 | `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET` | MinIO/R2/S3 escolhido |
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | Credenciais limitadas ao bucket |
 | `SES_*`, `MICROSOFT_*` | Apenas ao ativar email/Outlook/OneDrive |
+| `GEMINI_*` | Apenas após ativar e validar a análise documental opcional Gemini |
 
 Nunca copie segredos internos da publicação atual para a VPS.
 

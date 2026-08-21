@@ -161,3 +161,6 @@
 - [x] Criar um guia de Coolify desde a instalação na VPS até ao primeiro staging, incluindo proxy, MySQL, armazenamento, aplicação e DNS temporário.
 - [x] Criar o guia de Coolify desde a instalação na VPS até ao primeiro staging, incluindo proxy, MySQL, armazenamento, aplicação e DNS temporário.
 - [x] Desenhar a sincronização OneDrive por tenant, incluindo mapeamento de pastas, importação incremental, deduplicação, permissões e auditoria.
+- [x] Avaliar e desenhar uma camada Gemini opcional para leitura documental, com minimização de dados, confiança, limites de custo, auditoria e revisão humana.
+- [ ] Preparar a configuração segura de uma chave Gemini para o Coolify, sem ativar a API antes de validação com documentos de teste autorizados.
+- [x] Avaliar e desenhar uma camada Gemini opcional para leitura documental, com minimização de dados, confiança, limites de custo, auditoria e revisão humana.

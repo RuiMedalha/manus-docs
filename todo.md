@@ -162,8 +162,13 @@
 - [ ] Implementar conector Microsoft Graph OneDrive para pré-visualizar e importar documentos selecionados para a Inbox, sem sincronização automática inicial.
 - [ ] Configurar primeiro um ambiente staging do DocuFlux no Coolify e validar portabilidade antes de retomar o conector OneDrive Microsoft 365.
 - [ ] Preparar a VPS, instalar o Coolify e confirmar o acesso administrativo antes de inserir variáveis ou ativar a integração TOConline.
-- [ ] Corrigir o ciclo de login observado no ambiente Coolify, validando cookie de sessão, domínio HTTPS e redirecionamento sem remover dados de organizações existentes.
-- [ ] Fazer `auth.me` reconhecer sessões locais emitidas por `localAuth.login`, com teste de registo, login e consulta de identidade na mesma sessão.
+- [x] Corrigir o ciclo de login observado no ambiente Coolify, validando cookie de sessão, domínio HTTPS e redirecionamento sem remover dados de organizações existentes.
+- [x] Fazer `auth.me` reconhecer sessões locais emitidas por `localAuth.login`, com teste de registo, login e consulta de identidade na mesma sessão.
+- [ ] Corrigir o envio de documentos no Coolify através do MinIO e iniciar QR/OCR automaticamente após o ficheiro entrar na Inbox, sem exigir metadados manuais.
+- [ ] Resolver o erro 500 de `documents.upload` no Coolify através da configuração de endpoint, bucket e credenciais MinIO no ambiente da aplicação.
+- [ ] Ligar `docuflux-app` e `docuflux-minio` à mesma rede privada do Coolify e substituir o hostname S3 não resolvido por um endpoint interno validado.
+- [ ] Isolar e corrigir a operação de criação documental, financeira ou de fila OCR que ainda devolve `500` depois de o MinIO confirmar o bucket.
+- [ ] Recuperar o estado saudável do `coolify-proxy` antes de repetir o deploy do DocuFlux e os testes de rede MinIO.
 - [x] Impedir que o Service Worker intercepte pedidos de autenticação e URLs com variáveis analíticas não resolvidas no Coolify.
 - [ ] Promover o DocuFlux para produção no Coolify após validação transitória de login, armazenamento, OCR, base de dados e recuperação.
 - [ ] Preparar todos os serviços de produção do DocuFlux no Coolify: aplicação, MySQL, MinIO e volumes persistentes.

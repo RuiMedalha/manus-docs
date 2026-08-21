@@ -90,7 +90,10 @@ export const documentsRouter = router({
         ruleDocument,
       );
       const safeName = input.filename.replace(/[^a-zA-Z0-9._-]+/g, "-");
+      let uploadStage = "armazenamento";
+      try {
       const stored = await storagePut(`tenant-${tenantContext.tenant.id}/documents/${safeName}`, bytes, input.contentType);
+      uploadStage = "registo_documental";
       const document = await createDocument({
         tenantId: tenantContext.tenant.id,
         uploadedByUserId: ctx.user.id,
@@ -114,9 +117,12 @@ export const documentsRouter = router({
         suggestedFolder,
         finalFolder: suggestedFolder,
       });
+      uploadStage = "registo_financeiro";
       await createFinancialRecordFromDocument({ tenantId: tenantContext.tenant.id, documentId: document.id, documentType: document.documentType, documentNumber: document.documentNumber, entityName: document.entityName, documentDate: document.documentDate, totalCents: document.totalCents, currency: document.currency });
       await createOrUpdatePaymentFromDocument({ tenantId: tenantContext.tenant.id, documentId: document.id, createdByUserId: ctx.user.id, documentType: document.documentType, entityName: document.entityName, dueDate: document.dueDate, totalCents: document.totalCents, currency: document.currency });
+      uploadStage = "fila_ocr";
       const ocrJob = await enqueueDocumentProcessingJob({ tenantId: tenantContext.tenant.id, documentId: document.id, requestedByUserId: ctx.user.id, trigger: "upload" });
+      uploadStage = "auditoria";
       await recordAudit({
         tenantId: tenantContext.tenant.id,
         actorUserId: ctx.user.id,
@@ -127,6 +133,16 @@ export const documentsRouter = router({
       });
       if (ocrJob) await recordAudit({ tenantId: tenantContext.tenant.id, actorUserId: ctx.user.id, action: "ocr.queued", resourceType: "documentProcessingJob", resourceId: String(ocrJob.id), metadata: { documentId: document.id, trigger: "upload" } });
       return { document, fileUrl: stored.url };
+      } catch (error) {
+        console.error("[documents.upload] falhou", {
+          tenantId: tenantContext.tenant.id,
+          actorUserId: ctx.user.id,
+          filename: input.filename,
+          stage: uploadStage,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
     }),
   updateMetadata: protectedProcedure
     .input(

@@ -163,6 +163,7 @@
 - [ ] Configurar primeiro um ambiente staging do DocuFlux no Coolify e validar portabilidade antes de retomar o conector OneDrive Microsoft 365.
 - [ ] Preparar a VPS, instalar o Coolify e confirmar o acesso administrativo antes de inserir variáveis ou ativar a integração TOConline.
 - [ ] Corrigir o ciclo de login observado no ambiente Coolify, validando cookie de sessão, domínio HTTPS e redirecionamento sem remover dados de organizações existentes.
+- [ ] Fazer `auth.me` reconhecer sessões locais emitidas por `localAuth.login`, com teste de registo, login e consulta de identidade na mesma sessão.
 - [x] Impedir que o Service Worker intercepte pedidos de autenticação e URLs com variáveis analíticas não resolvidas no Coolify.
 - [ ] Promover o DocuFlux para produção no Coolify após validação transitória de login, armazenamento, OCR, base de dados e recuperação.
 - [ ] Preparar todos os serviços de produção do DocuFlux no Coolify: aplicação, MySQL, MinIO e volumes persistentes.

@@ -27,6 +27,8 @@ import {
   reconciliationSuggestions,
   reconciliations,
   supplierPaymentProfiles,
+  taxReviewProposals,
+  tocOnlineExports,
   tenantInvitations,
   tenantMembers,
   tenants,
@@ -824,6 +826,68 @@ export async function listPaymentSchedulesForTenant(tenantId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(paymentSchedules).where(eq(paymentSchedules.tenantId, tenantId)).orderBy(asc(paymentSchedules.dueDate), desc(paymentSchedules.id)).limit(500);
+}
+
+export async function listTocOnlineExportsForTenant(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({ export: tocOnlineExports, document: documents }).from(tocOnlineExports)
+    .innerJoin(documents, and(eq(tocOnlineExports.documentId, documents.id), eq(documents.tenantId, tenantId)))
+    .where(eq(tocOnlineExports.tenantId, tenantId)).orderBy(desc(tocOnlineExports.updatedAt));
+}
+
+export async function getTocOnlineExportForTenant(tenantId: number, documentId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(tocOnlineExports).where(and(eq(tocOnlineExports.tenantId, tenantId), eq(tocOnlineExports.documentId, documentId))).limit(1);
+  return rows[0];
+}
+
+export async function prepareTocOnlineExport(input: { tenantId: number; documentId: number; preparedByUserId: number; exportReference: string; payloadSnapshot: Record<string, unknown> }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.insert(tocOnlineExports).values({ ...input, status: "pronto_para_revisao" }).onDuplicateKeyUpdate({ set: { status: "pronto_para_revisao", exportReference: input.exportReference, payloadSnapshot: input.payloadSnapshot, preparedByUserId: input.preparedByUserId, preparedAt: new Date(), approvedByUserId: null, approvedAt: null, sentByUserId: null, sentAt: null, externalDocumentId: null, responseSummary: null, lastError: null } });
+  const exportRecord = await getTocOnlineExportForTenant(input.tenantId, input.documentId);
+  if (!exportRecord) throw new Error("Não foi possível preparar a exportação TOConline.");
+  return exportRecord;
+}
+
+export async function approveTocOnlineExport(tenantId: number, documentId: number, approvedByUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.update(tocOnlineExports).set({ status: "aprovado_para_envio", approvedByUserId, approvedAt: new Date() }).where(and(eq(tocOnlineExports.tenantId, tenantId), eq(tocOnlineExports.documentId, documentId), eq(tocOnlineExports.status, "pronto_para_revisao")));
+  return getTocOnlineExportForTenant(tenantId, documentId);
+}
+
+export async function listTaxReviewProposalsForTenant(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({ proposal: taxReviewProposals, document: documents }).from(taxReviewProposals)
+    .innerJoin(documents, and(eq(taxReviewProposals.documentId, documents.id), eq(documents.tenantId, tenantId)))
+    .where(eq(taxReviewProposals.tenantId, tenantId)).orderBy(desc(taxReviewProposals.updatedAt));
+}
+
+export async function getTaxReviewProposalForTenant(tenantId: number, documentId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(taxReviewProposals).where(and(eq(taxReviewProposals.tenantId, tenantId), eq(taxReviewProposals.documentId, documentId))).limit(1);
+  return rows[0];
+}
+
+export async function saveTaxReviewProposal(input: { tenantId: number; documentId: number; taxCategory: "alimentacao" | "combustivel" | "utilidades" | "outro"; ruleCode: string; ruleVersion: string; vatOriginalCents: number; vatDeductibleCents: number | null; vatNonDeductibleCents: number | null; rationale: string; preparedByUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.insert(taxReviewProposals).values({ ...input, reviewStatus: "pendente" }).onDuplicateKeyUpdate({ set: { taxCategory: input.taxCategory, ruleCode: input.ruleCode, ruleVersion: input.ruleVersion, reviewStatus: "pendente", vatOriginalCents: input.vatOriginalCents, vatDeductibleCents: input.vatDeductibleCents, vatNonDeductibleCents: input.vatNonDeductibleCents, rationale: input.rationale, preparedByUserId: input.preparedByUserId, reviewedByUserId: null, reviewedAt: null } });
+  const proposal = await getTaxReviewProposalForTenant(input.tenantId, input.documentId);
+  if (!proposal) throw new Error("Não foi possível guardar a proposta de IVA.");
+  return proposal;
+}
+
+export async function confirmTaxReviewProposal(input: { tenantId: number; documentId: number; reviewedByUserId: number; reviewStatus: "confirmado_contabilista" | "excecao" | "rejeitado"; vatDeductibleCents: number; vatNonDeductibleCents: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("A base de dados não está disponível.");
+  await db.update(taxReviewProposals).set({ reviewStatus: input.reviewStatus, vatDeductibleCents: input.vatDeductibleCents, vatNonDeductibleCents: input.vatNonDeductibleCents, reviewedByUserId: input.reviewedByUserId, reviewedAt: new Date() }).where(and(eq(taxReviewProposals.tenantId, input.tenantId), eq(taxReviewProposals.documentId, input.documentId), eq(taxReviewProposals.reviewStatus, "pendente")));
+  return getTaxReviewProposalForTenant(input.tenantId, input.documentId);
 }
 
 export async function listPaymentApprovalPoliciesForTenant(tenantId: number) {

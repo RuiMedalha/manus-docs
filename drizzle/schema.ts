@@ -243,6 +243,64 @@ export const supplierPaymentProfiles = mysqlTable(
   ],
 );
 
+export const tocOnlineExports = mysqlTable(
+  "tocOnlineExports",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    tenantId: int("tenantId").notNull(),
+    documentId: int("documentId").notNull(),
+    status: mysqlEnum("status", ["nao_preparado", "pronto_para_revisao", "aprovado_para_envio", "enviado", "falhou"])
+      .default("nao_preparado")
+      .notNull(),
+    exportReference: varchar("exportReference", { length: 96 }).notNull(),
+    payloadSnapshot: json("payloadSnapshot").notNull(),
+    preparedByUserId: int("preparedByUserId").notNull(),
+    preparedAt: timestamp("preparedAt").defaultNow().notNull(),
+    approvedByUserId: int("approvedByUserId"),
+    approvedAt: timestamp("approvedAt"),
+    sentByUserId: int("sentByUserId"),
+    sentAt: timestamp("sentAt"),
+    externalDocumentId: varchar("externalDocumentId", { length: 160 }),
+    responseSummary: json("responseSummary"),
+    lastError: text("lastError"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("tocOnlineExports_tenant_document_uq").on(table.tenantId, table.documentId),
+    uniqueIndex("tocOnlineExports_tenant_reference_uq").on(table.tenantId, table.exportReference),
+    index("tocOnlineExports_tenant_status_idx").on(table.tenantId, table.status, table.updatedAt),
+  ],
+);
+
+export const taxReviewProposals = mysqlTable(
+  "taxReviewProposals",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    tenantId: int("tenantId").notNull(),
+    documentId: int("documentId").notNull(),
+    taxCategory: mysqlEnum("taxCategory", ["alimentacao", "combustivel", "utilidades", "outro"]).notNull(),
+    ruleCode: varchar("ruleCode", { length: 96 }).notNull(),
+    ruleVersion: varchar("ruleVersion", { length: 40 }).notNull(),
+    reviewStatus: mysqlEnum("reviewStatus", ["pendente", "confirmado_contabilista", "excecao", "rejeitado"])
+      .default("pendente")
+      .notNull(),
+    vatOriginalCents: bigint("vatOriginalCents", { mode: "number" }).notNull(),
+    vatDeductibleCents: bigint("vatDeductibleCents", { mode: "number" }),
+    vatNonDeductibleCents: bigint("vatNonDeductibleCents", { mode: "number" }),
+    rationale: text("rationale").notNull(),
+    preparedByUserId: int("preparedByUserId").notNull(),
+    reviewedByUserId: int("reviewedByUserId"),
+    reviewedAt: timestamp("reviewedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("taxReviewProposals_tenant_document_uq").on(table.tenantId, table.documentId),
+    index("taxReviewProposals_tenant_status_idx").on(table.tenantId, table.reviewStatus, table.updatedAt),
+  ],
+);
+
 export const financialAccounts = mysqlTable(
   "financialAccounts",
   {

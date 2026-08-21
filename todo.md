@@ -149,7 +149,10 @@
 - [x] Criar perfis de fornecedor com prazo padrão, método de pagamento (manual, transferência, cartão ou débito direto), categoria e pasta definitiva.
 - [x] Criar estados de fatura `a_pagar`, `aguarda_debito_direto`, `paga` e `conciliada`, sem retirar o documento da pasta definitiva do fornecedor.
 - [x] Fechar faturas de débito direto por confirmação no extrato bancário ou ação manual auditada, removendo-as do calendário de pendentes.
-- [ ] Registar cada envio aprovado ao TOConline e disponibilizar um mapa mensal de documentos enviados para a contabilista.
+- [ ] Registar cada envio aprovado ao TOConline e disponibilizar um mapa mensal de documentos efetivamente enviados para a contabilista.
+- [ ] Implementar o envio real ao TOConline via API com credenciais seguras no servidor, guardando `externalDocumentId`, `sentAt`, `sentByUserId`, resposta e falhas.
+- [ ] Separar no mapa mensal TOConline os documentos efetivamente enviados das propostas apenas preparadas ou aprovadas.
+- [ ] Cobrir o envio TOConline por testes de sucesso, falha e reenvio protegido por `exportReference`, após credenciais de sandbox serem fornecidas.
 - [x] Criar um guia passo a passo de staging, migração de dados, domínio, validação e corte para Coolify.
 - [x] Criar e guardar efetivamente `COOLIFY_DEPLOYMENT_RUNBOOK.md` no repositório com o roteiro de staging, migração de dados, domínio, validação e corte para Coolify.
 - [x] Validar o conteúdo persistido do guia Coolify antes de o disponibilizar para a transição.
@@ -174,7 +177,7 @@
 - [ ] Mostrar pré-visualização de recorte e permitir manter o original quando a deteção automática não tiver confiança suficiente.
 - [ ] Fazer QR e OCR usar a imagem corrigida, preservando o original para auditoria e reprocessamento.
 - [ ] Modelar o fluxo de fornecedor: fatura a pagar, fatura já liquidada/débito direto, pasta definitiva e estado de encaminhamento para TOConline.
-- [ ] Criar regras contabilísticas assistidas para IVA por categoria, incluindo alimentação e combustível, sempre sujeitas a confirmação do contabilista antes da exportação.
+- [x] Criar regras contabilísticas assistidas para IVA por categoria, incluindo alimentação e combustível, sempre sujeitas a confirmação do contabilista antes da exportação.
 - [ ] Preparar a exportação/revisão TOConline sem criar lançamentos ou comunicar IVA automaticamente antes da aprovação profissional.
 - [x] Adicionar no perfil de fornecedor a categoria e conta de débito padrão, persistindo-as e cobrindo a configuração com testes.
 - [x] Persistir e apresentar no documento os estados `a_pagar`, `aguarda_debito_direto`, `paga` e `conciliada`, não apenas no pagamento associado.
